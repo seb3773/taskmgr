@@ -53,7 +53,7 @@ The graphical interface is built using C++ and the TQt3 framework (compatible wi
 - **O(N) Pre-parsed Sorting**: Caches parsed sort keys once per node before sorting, avoiding redundant numeric conversion and string formatting inside the comparator loop.
 
 ### 3. Binary Size Optimization
-The build system is tuned for minimal footprint, yielding a fully-featured desktop binary of only **752 KB**:
+The build system is tuned for minimal footprint, yielding a fully-featured desktop binary of only **605 KB**:
 - **Link-Time Optimization (LTO)**: Enabled via `-flto` to inline functions across C and C++ translation units.
 - **Garbage Collection of Sections**: Strips unused code at link time using `-ffunction-sections -fdata-sections -Wl,--gc-sections`.
 - **Visibility Control**: Hides internal library symbols with `-fvisibility=hidden`.
