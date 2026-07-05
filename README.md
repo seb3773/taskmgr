@@ -6,7 +6,7 @@ A high-performance, lightweight, and modern system task manager designed for the
 
 ## Core Features
 
-- **Processes Tab**: Virtual tree-table view displaying hierarchical processes with grouped mode. Includes real-time indicators for CPU, memory working set, private bytes, virtual size, GPU usage, priority, and PSS memory calculations. Includes quick "End Task" controls.
+- **Processes Tab**: Virtual tree-table view displaying hierarchical processes with grouped mode. Includes real-time indicators for CPU, memory working set, private bytes, virtual size, GPU usage, priority, and PSS memory calculations. Includes quick "End Task" controls and **interactive keyboard prefix-search** (automatically jumps selection to matching processes with a theme-aware overlay popup).
 - **Performance Tab**: real-time system resource graphs (CPU usage, RAM allocation, GPU activity, Disk read/write rates, and Network throughput). Supports smooth scrolling, logical processor grids, and double-click **Compact Mode** (displays only the active graph with window decorations and sidebar hidden).
 - **Startup Tab**: Lists desktop auto-start applications with quick enable/disable toggle options.
 - **Users Tab**: Monitors logged-in users with session resource allocations and disconnect capabilities.

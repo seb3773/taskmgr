@@ -15,6 +15,10 @@
  * Expand/collapse toggles are painted in column 0; click handling is separate
  * from row selection.
  */
+class TQLabel;
+class TQTimer;
+class TQFrame;
+
 class TQtMvcTreeView : public TQTable
 {
     TQ_OBJECT
@@ -88,6 +92,8 @@ protected:
     void currentChanged(int row, int col);
     void contentsContextMenuEvent(TQContextMenuEvent* e);
     void contentsMousePressEvent(TQMouseEvent* e);
+    void keyPressEvent(TQKeyEvent* e);
+    void resizeEvent(TQResizeEvent* e);
     bool eventFilter(TQObject* watched, TQEvent* event);
 
 private slots:
@@ -97,6 +103,7 @@ private slots:
     void onModelReset();
     void onLayoutChanged();
     void onHeaderClicked(int col);
+    void hideSearch();
 
 private:
     struct VisibleEntry {
@@ -116,6 +123,7 @@ private:
     void drawExpandToggle(TQPainter* p, int x, int y, int h, bool expanded) const;
     bool hitExpandToggle(int displayRow, int x) const;
     void invalidateSortCache();
+    void updateSearch();
 
     TQtAbstractItemModel* m_model;
 
@@ -134,6 +142,12 @@ private:
 
     TQMap<long, TQPixmap> m_scaledIconCache;
     int m_blockPaintingDepth;
+
+    TQString m_searchText;
+    TQFrame* m_searchWidget;
+    TQLabel* m_searchIconLabel;
+    TQLabel* m_searchTextLabel;
+    TQTimer* m_searchTimer;
 };
 
 #endif // TQTMVCTREEVIEW_H
