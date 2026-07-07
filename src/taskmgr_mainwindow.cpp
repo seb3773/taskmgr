@@ -325,32 +325,30 @@ void TaskMgrMainWindow::updateSystemMetrics()
         swap_usage = (double)swap_used / (double)swap_total;
     bridge_update_performance_samples(cpu_usage, ram_usage, swap_usage);
 
-    if (isVisible() && !isMinimized()) {
-        TQWidget* curPage = m_tabWidget->currentPage();
-        if (curPage == m_processesTab) {
-            if (!m_processesTabContent->isCompactMode()) {
-                m_processesGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
-                                                (double)swap_used, swap_total_gb);
+    TQWidget* curPage = m_tabWidget->currentPage();
+    if (curPage == m_processesTab) {
+        if (!m_processesTabContent->isCompactMode()) {
+            m_processesGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
+                                            (double)swap_used, swap_total_gb);
 
-                double gpu_pct = 0.0;
-                performance_data_bridge* perf = bridge_get_performance_data();
-                if (perf && perf->gpu_total_samples) {
-                    int last_idx = perf->current_index - 1;
-                    if (last_idx < 0) last_idx = 119;
-                    gpu_pct = perf->gpu_total_samples[last_idx];
-                }
-                m_processesHeaderStats->updateValues(cpu_pct, ram_usage * 100.0, gpu_pct);
+            double gpu_pct = 0.0;
+            performance_data_bridge* perf = bridge_get_performance_data();
+            if (perf && perf->gpu_total_samples) {
+                int last_idx = perf->current_index - 1;
+                if (last_idx < 0) last_idx = 119;
+                gpu_pct = perf->gpu_total_samples[last_idx];
             }
-        } else if (curPage == m_startupTab) {
-            m_startupGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
-                                          (double)swap_used, swap_total_gb);
-        } else if (curPage == m_usersTab) {
-            m_usersGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
-                                        (double)swap_used, swap_total_gb);
-        } else if (curPage == m_servicesTab) {
-            m_servicesGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
-                                           (double)swap_used, swap_total_gb);
+            m_processesHeaderStats->updateValues(cpu_pct, ram_usage * 100.0, gpu_pct);
         }
+    } else if (curPage == m_startupTab) {
+        m_startupGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
+                                      (double)swap_used, swap_total_gb);
+    } else if (curPage == m_usersTab) {
+        m_usersGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
+                                    (double)swap_used, swap_total_gb);
+    } else if (curPage == m_servicesTab) {
+        m_servicesGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
+                                       (double)swap_used, swap_total_gb);
     }
 
     updateSystemTray(cpu_pct);
@@ -391,9 +389,9 @@ void TaskMgrMainWindow::onTabChanged(TQWidget* widget)
         m_servicesTabContent->refresh();
     }
 
-    // Immediately update gauges values and layouts for the newly selected tab
-    updateSystemMetrics();
+    // Immediately update gauges layout and values for the newly selected tab
     updateGaugesVisibility();
+    updateSystemMetrics();
 }
 
 void TaskMgrMainWindow::onMenuQuit()
