@@ -216,7 +216,9 @@ void PerformanceTab::onBlockClicked(MiniBlockWidget* widget)
 
 void PerformanceTab::refresh()
 {
-    if (bridge_get_app_flags() & APP_FLAG_SMOOTH_SCROLLING) {
+    bool isWinVisible = topLevelWidget() && topLevelWidget()->isVisible() && !topLevelWidget()->isMinimized();
+
+    if (isWinVisible && (bridge_get_app_flags() & APP_FLAG_SMOOTH_SCROLLING)) {
         m_scrollTimer.start();
         s_scrollOffset = 0.0;
         if (m_animationTimerId == 0) {
@@ -292,6 +294,14 @@ void PerformanceTab::onCPUGraphTypeAction(int id)
 void PerformanceTab::timerEvent(TQTimerEvent* e)
 {
     if (e->timerId() == m_animationTimerId) {
+        bool isWinVisible = topLevelWidget() && topLevelWidget()->isVisible() && !topLevelWidget()->isMinimized();
+        if (!isWinVisible) {
+            killTimer(m_animationTimerId);
+            m_animationTimerId = 0;
+            s_scrollOffset = 0.0;
+            return;
+        }
+
         if (bridge_get_app_flags() & APP_FLAG_SMOOTH_SCROLLING) {
             int elapsed_ms = m_scrollTimer.elapsed();
             int interval_ms = bridge_get_refresh_interval();

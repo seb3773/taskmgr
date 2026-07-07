@@ -325,26 +325,33 @@ void TaskMgrMainWindow::updateSystemMetrics()
         swap_usage = (double)swap_used / (double)swap_total;
     bridge_update_performance_samples(cpu_usage, ram_usage, swap_usage);
 
-    if (!m_processesTabContent->isCompactMode()) {
-        m_processesGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
+    if (isVisible() && !isMinimized()) {
+        TQWidget* curPage = m_tabWidget->currentPage();
+        if (curPage == m_processesTab) {
+            if (!m_processesTabContent->isCompactMode()) {
+                m_processesGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
+                                                (double)swap_used, swap_total_gb);
+
+                double gpu_pct = 0.0;
+                performance_data_bridge* perf = bridge_get_performance_data();
+                if (perf && perf->gpu_total_samples) {
+                    int last_idx = perf->current_index - 1;
+                    if (last_idx < 0) last_idx = 119;
+                    gpu_pct = perf->gpu_total_samples[last_idx];
+                }
+                m_processesHeaderStats->updateValues(cpu_pct, ram_usage * 100.0, gpu_pct);
+            }
+        } else if (curPage == m_startupTab) {
+            m_startupGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
+                                          (double)swap_used, swap_total_gb);
+        } else if (curPage == m_usersTab) {
+            m_usersGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
                                         (double)swap_used, swap_total_gb);
-
-        double gpu_pct = 0.0;
-        performance_data_bridge* perf = bridge_get_performance_data();
-        if (perf && perf->gpu_total_samples) {
-            int last_idx = perf->current_index - 1;
-            if (last_idx < 0) last_idx = 119;
-            gpu_pct = perf->gpu_total_samples[last_idx];
+        } else if (curPage == m_servicesTab) {
+            m_servicesGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
+                                           (double)swap_used, swap_total_gb);
         }
-        m_processesHeaderStats->updateValues(cpu_pct, ram_usage * 100.0, gpu_pct);
     }
-
-    m_startupGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
-                                  (double)swap_used, swap_total_gb);
-    m_usersGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
-                                (double)swap_used, swap_total_gb);
-    m_servicesGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
-                                   (double)swap_used, swap_total_gb);
 
     updateSystemTray(cpu_pct);
 }
@@ -352,6 +359,10 @@ void TaskMgrMainWindow::updateSystemMetrics()
 void TaskMgrMainWindow::onRefreshTimeout()
 {
     updateSystemMetrics();
+
+    if (!isVisible() || isMinimized()) {
+        return;
+    }
 
     /* Refresh the active tab content */
     if (m_tabWidget->currentPage() == m_processesTab) {
@@ -379,6 +390,10 @@ void TaskMgrMainWindow::onTabChanged(TQWidget* widget)
     } else if (widget == m_servicesTab) {
         m_servicesTabContent->refresh();
     }
+
+    // Immediately update gauges values and layouts for the newly selected tab
+    updateSystemMetrics();
+    updateGaugesVisibility();
 }
 
 void TaskMgrMainWindow::onMenuQuit()
@@ -665,20 +680,23 @@ void TaskMgrMainWindow::showEvent(TQShowEvent* e)
     TQMainWindow::showEvent(e);
     if (bridge_get_app_flags() & APP_FLAG_KEEP_ABOVE)
         applyKeepAbove(true);
+    onRefreshTimeout();
 }
 
 bool TaskMgrMainWindow::event(TQEvent* e)
 {
-    if (e->type() == TQEvent::WindowStateChange &&
-        (bridge_get_app_flags() & APP_FLAG_MINIMIZE_TO_TRAY) &&
-        isMinimized()) {
-        saved_win_x = x();
-        saved_win_y = y();
-        showNormal();
-        hide();
-        guint16 flags = bridge_get_app_flags();
-        bridge_set_app_flags(flags | APP_FLAG_WINDOW_HIDDEN);
-        return true;
+    if (e->type() == TQEvent::WindowStateChange) {
+        if ((bridge_get_app_flags() & APP_FLAG_MINIMIZE_TO_TRAY) && isMinimized()) {
+            saved_win_x = x();
+            saved_win_y = y();
+            showNormal();
+            hide();
+            guint16 flags = bridge_get_app_flags();
+            bridge_set_app_flags(flags | APP_FLAG_WINDOW_HIDDEN);
+            return true;
+        } else if (!isMinimized()) {
+            onRefreshTimeout();
+        }
     }
     return TQMainWindow::event(e);
 }
