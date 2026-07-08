@@ -331,6 +331,7 @@ typedef struct __attribute__((packed)) {
     uint8_t editor_index;  // 0 = non défini, >0 = index dans available_editors + 1
     uint8_t browser_index;  // 0 = non défini, >0 = index dans available_browsers + 1
     uint8_t gpu_usage_reporting_mode;  // 0 = Process Time cumulative, 1 = Process Time average, 2 = Hardware Approximation
+    uint8_t terminal_index; // 0 = non défini, >0 = index dans available_terminals + 1
 } config_data_t;
 
 gboolean refresh_task_list(void);

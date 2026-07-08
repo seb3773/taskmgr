@@ -101,6 +101,7 @@ protected:
 
     /* Track selected PID or group name to restore selection after refresh */
     pid_t m_selectedPid;
+    unsigned long m_selectedWindowId;
     TQString m_selectedGroupName;
 
     /* Compact mode: representative PID -> all member PIDs to terminate */

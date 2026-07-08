@@ -12,6 +12,7 @@
 #include <X11/Xutil.h>
 
 #include <limits.h>
+#include <unistd.h>
 
 #include <ntqmap.h>
 #include <ntqvaluevector.h>
@@ -220,11 +221,14 @@ static TQValueList<WindowInfo> enumerateClientWindows()
 
     for (unsigned long i = 0; i < nitems; ++i) {
         Window win = clientWindows[i];
-        if (isExcludedWindowType(dpy, win) || isHiddenWindow(dpy, win))
+        if (isExcludedWindowType(dpy, win))
             continue;
 
         pid_t pid = 0;
         if (!getWindowPidWithParents(dpy, win, &pid))
+            continue;
+
+        if (pid == getpid())
             continue;
 
         WindowInfo info;
@@ -441,6 +445,7 @@ TQValueList<CompactAppEntry> CompactAppList::build(const GArray* tasks, uid_t ow
 
         CompactAppEntry entry;
         entry.repPid = appRoot;
+        entry.windowId = (unsigned long)win.window;
         entry.displayName = displayNameForWindow(win, tasks);
         entry.iconKey = iconKeyForWindow(win, tasks);
         entry.wmClass = win.wmClass;

@@ -113,8 +113,10 @@ void ServicesTab::refresh()
             // Conditional coloring for Status column
             TQtCellStyle statusStyle;
             statusStyle.hasBackground = true;
-            if (strcmp(list->services[i].status, "running") == 0) {
+            if (strcasecmp(list->services[i].status, "running") == 0) {
                 statusStyle.background = TQColor(225, 245, 225); // Soft green
+            } else if (strcasecmp(list->services[i].status, "failed") == 0) {
+                statusStyle.background = TQColor(255, 230, 230); // Soft red
             } else {
                 statusStyle.background = TQColor(240, 240, 240); // Soft grey
             }

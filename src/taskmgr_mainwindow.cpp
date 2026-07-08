@@ -237,15 +237,22 @@ void TaskMgrMainWindow::createMenuBar()
     m_viewMenu->setItemChecked(m_viewFullCmdLineId,
                                (flags & APP_FLAG_SHOW_FULL_PATH) != 0);
 
-    m_viewCachedAsFreeId = m_viewMenu->insertItem("Show cached memory as free",
-                            this, SLOT(onToggleCachedAsFree()));
-    m_viewMenu->setItemChecked(m_viewCachedAsFreeId,
-                               (flags & APP_FLAG_SHOW_CACHED_FREE) != 0);
 
     m_viewGroupProcsId   = m_viewMenu->insertItem("Group processes",
                             this, SLOT(onToggleGroupProcs()));
     m_viewMenu->setItemChecked(m_viewGroupProcsId,
                                (flags & APP_FLAG_GROUP_PROCS) != 0);
+
+    m_viewSeparatorExpandCollapseId = m_viewMenu->insertSeparator();
+
+    m_viewExpandAllId   = m_viewMenu->insertItem("Expand All",
+                            this, SLOT(onExpandAll()));
+    m_viewCollapseAllId = m_viewMenu->insertItem("Collapse All",
+                            this, SLOT(onCollapseAll()));
+
+    bool groupProcs = (flags & APP_FLAG_GROUP_PROCS) != 0;
+    m_viewMenu->setItemEnabled(m_viewExpandAllId, groupProcs);
+    m_viewMenu->setItemEnabled(m_viewCollapseAllId, groupProcs);
 
     /* ---- Help menu ---- */
     TQPopupMenu* helpMenu = new TQPopupMenu(this);
@@ -255,21 +262,29 @@ void TaskMgrMainWindow::createMenuBar()
     menuBar()->insertItem("&File",  m_fileMenu);
     menuBar()->insertItem("&View",  m_viewMenu);
     menuBar()->insertItem("&Help",  helpMenu);
+    updateViewMenu();
 }
 
-void TaskMgrMainWindow::updateViewMenuForCompactMode(bool compact)
+void TaskMgrMainWindow::updateViewMenu()
 {
-    if (!m_viewMenu)
-        return;
+    if (!m_viewMenu) return;
 
-    m_viewMenu->setItemVisible(m_viewSeparatorAfterSpeedId, !compact);
-    m_viewMenu->setItemVisible(m_viewUserTasksId, !compact);
-    m_viewMenu->setItemVisible(m_viewRootTasksId, !compact);
-    m_viewMenu->setItemVisible(m_viewOtherTasksId, !compact);
-    m_viewMenu->setItemVisible(m_viewSeparatorBeforeFullCmdId, !compact);
-    m_viewMenu->setItemVisible(m_viewFullCmdLineId, !compact);
-    m_viewMenu->setItemVisible(m_viewCachedAsFreeId, !compact);
-    m_viewMenu->setItemVisible(m_viewGroupProcsId, !compact);
+    bool isProcessesTab = (m_tabWidget->currentPage() == m_processesTab);
+    bool isCompact = m_processesTabContent && m_processesTabContent->isCompactMode();
+
+    // Show advanced processes items only if we are on the Processes tab AND NOT in compact mode
+    bool showAdvanced = isProcessesTab && !isCompact;
+
+    m_viewMenu->setItemVisible(m_viewUserTasksId, showAdvanced);
+    m_viewMenu->setItemVisible(m_viewRootTasksId, showAdvanced);
+    m_viewMenu->setItemVisible(m_viewOtherTasksId, showAdvanced);
+    m_viewMenu->setItemVisible(m_viewSeparatorAfterSpeedId, showAdvanced);
+    m_viewMenu->setItemVisible(m_viewSeparatorBeforeFullCmdId, showAdvanced);
+    m_viewMenu->setItemVisible(m_viewFullCmdLineId, showAdvanced);
+    m_viewMenu->setItemVisible(m_viewGroupProcsId, showAdvanced);
+    m_viewMenu->setItemVisible(m_viewSeparatorExpandCollapseId, showAdvanced);
+    m_viewMenu->setItemVisible(m_viewExpandAllId, showAdvanced);
+    m_viewMenu->setItemVisible(m_viewCollapseAllId, showAdvanced);
 }
 
 void TaskMgrMainWindow::updateGaugesVisibility()
@@ -392,6 +407,7 @@ void TaskMgrMainWindow::onTabChanged(TQWidget* widget)
     // Immediately update gauges layout and values for the newly selected tab
     updateGaugesVisibility();
     updateSystemMetrics();
+    updateViewMenu();
 }
 
 void TaskMgrMainWindow::onMenuQuit()
@@ -548,16 +564,28 @@ void TaskMgrMainWindow::onToggleFullCmdLine()
     onRefreshTimeout();
 }
 
-void TaskMgrMainWindow::onToggleCachedAsFree()
-{
-    toggleAppFlag(m_viewMenu, m_viewCachedAsFreeId, APP_FLAG_SHOW_CACHED_FREE);
-    onRefreshTimeout();
-}
 
 void TaskMgrMainWindow::onToggleGroupProcs()
 {
     toggleAppFlag(m_viewMenu, m_viewGroupProcsId, APP_FLAG_GROUP_PROCS);
+    bool groupProcs = (bridge_get_app_flags() & APP_FLAG_GROUP_PROCS) != 0;
+    m_viewMenu->setItemEnabled(m_viewExpandAllId, groupProcs);
+    m_viewMenu->setItemEnabled(m_viewCollapseAllId, groupProcs);
     onRefreshTimeout();
+}
+
+void TaskMgrMainWindow::onExpandAll()
+{
+    if (m_processesTabContent && m_processesTabContent->treeView()) {
+        m_processesTabContent->treeView()->expandAll();
+    }
+}
+
+void TaskMgrMainWindow::onCollapseAll()
+{
+    if (m_processesTabContent && m_processesTabContent->treeView()) {
+        m_processesTabContent->treeView()->collapseAll();
+    }
 }
 
 void TaskMgrMainWindow::onProcessesDetailsToggle()
@@ -587,13 +615,13 @@ void TaskMgrMainWindow::enterProcessesCompactMode()
 
     m_tabWidget->setCurrentPage(0);
     m_processesTabContent->setCompactMode(true);
-    updateViewMenuForCompactMode(true);
+    updateViewMenu();
 }
 
 void TaskMgrMainWindow::exitProcessesCompactMode()
 {
     m_processesTabContent->setCompactMode(false);
-    updateViewMenuForCompactMode(false);
+    updateViewMenu();
 
     guint16 flags = bridge_get_app_flags();
     bridge_set_app_flags(flags | APP_FLAG_FULL_VIEW);

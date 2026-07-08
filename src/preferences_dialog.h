@@ -36,6 +36,8 @@ private:
     TQCheckBox* m_chkPss;
     TQCheckBox* m_chkSmooth;
     TQCheckBox* m_chkAntiAlias;
+    TQCheckBox* m_chkCachedAsFree;
+    TQCheckBox* m_chkIndividualFreq;
     TQComboBox* m_cmbGpuMode;
     
     TQComboBox* m_cmbFg;
@@ -56,6 +58,7 @@ private:
 
     TQComboBox* m_cmbEditor;
     TQComboBox* m_cmbBrowser;
+    TQComboBox* m_cmbTerminal;
 
     TQPushButton* m_btnOk;
     TQPushButton* m_btnCancel;

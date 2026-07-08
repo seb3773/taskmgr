@@ -54,6 +54,24 @@ AppManager browser_manager = {
     .default_index = 0
 };
 
+// Liste des terminaux supportés
+const char *terminals_list[] = {
+    "konsole", "gnome-terminal", "xfce4-terminal", "mate-terminal",
+    "lxterminal", "qterminal", "alacritty", "kitty", "xterm",
+    "rxvt", "urxvt", "tilix", "terminology", "tilda", "guake",
+    NULL
+};
+
+AppManager terminal_manager = {
+    .type = APP_TYPE_TERMINAL,
+    .type_name = "terminal",
+    .app_list = terminals_list,
+    .available_apps = NULL,
+    .available_apps_count = 0,
+    .default_binary_path = NULL,
+    .default_index = 0
+};
+
 static char* check_dirs(const char *cmd, const char **dirs, int count) {
     for (int i = 0; i < count; i++) {
         char fullpath[512];

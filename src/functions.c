@@ -723,6 +723,48 @@ gdouble get_cpu_speed(void) {
     return cpu_speed_value / 1000.0;
 }
 
+gdouble get_core_cpu_speed(int core_index) {
+    char path[128];
+    snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", core_index);
+    FILE *fp = fopen(path, "r");
+    if (fp) {
+        double freq_khz = 0.0;
+        if (fscanf(fp, "%lf", &freq_khz) == 1) {
+            fclose(fp);
+            return freq_khz / 1000000.0;
+        }
+        fclose(fp);
+    }
+
+    FILE *cpuinfo = fopen("/proc/cpuinfo", "r");
+    if (cpuinfo == NULL) {
+        return 0.0;
+    }
+    char line[128];
+    gdouble cpu_speed_value = 0.0;
+    int current_core = -1;
+    while (fgets(line, sizeof(line), cpuinfo)) {
+        if (strncmp(line, "processor", 9) == 0) {
+            char *start = strchr(line, ':');
+            if (start != NULL) {
+                sscanf(start + 1, "%d", &current_core);
+            }
+        }
+        if (current_core == core_index && strncmp(line, "cpu MHz", 7) == 0) {
+            char *start = strchr(line, ':');
+            if (start != NULL) {
+                sscanf(start + 1, "%lf", &cpu_speed_value);
+                break;
+            }
+        }
+    }
+    fclose(cpuinfo);
+    if (cpu_speed_value == 0.0 && core_index > 0) {
+        return get_core_cpu_speed(0);
+    }
+    return cpu_speed_value / 1000.0;
+}
+
 #ifndef WITHOUT_GTK
 GdkPixbuf* get_cpu_icon_pixbuf(gint cpu_level) {
     if (cpu_level < 0 || cpu_level > MAX_CPU_LEVEL) return NULL;
@@ -1596,6 +1638,12 @@ void init_cpu_core_sampling(void) {
             performance_data.cpu_core_samples[i][j] = 0;
         }
     }
+
+    // Allouer le tableau des vitesses des cœurs
+    performance_data.cpu_core_speeds = g_malloc(performance_data.cpu_core_count * sizeof(gdouble));
+    for (int i = 0; i < performance_data.cpu_core_count; i++) {
+        performance_data.cpu_core_speeds[i] = 0.0;
+    }
 }
 OPTIMIZE_SIZE_END
 
@@ -1609,6 +1657,10 @@ void cleanup_cpu_core_sampling(void) {
         }
         g_free(performance_data.cpu_core_samples);
         performance_data.cpu_core_samples = NULL;
+    }
+    if (performance_data.cpu_core_speeds) {
+        g_free(performance_data.cpu_core_speeds);
+        performance_data.cpu_core_speeds = NULL;
     }
 }
 
@@ -1706,6 +1758,13 @@ void update_performance_samples(gdouble cpu_usage, gdouble ram_usage, gdouble sw
         }
         
         g_free(core_usages);
+    }
+    
+    // Mettre à jour les vitesses individuelles des cœurs logiques
+    if (performance_data.cpu_core_speeds) {
+        for (int i = 0; i < performance_data.cpu_core_count; i++) {
+            performance_data.cpu_core_speeds[i] = get_core_cpu_speed(i);
+        }
     }
     
     // Échantillonner les statistiques GPU système
@@ -2572,11 +2631,14 @@ void load_config(void) {
     default_editor_index = 0;  // Non défini
     // Valeur par défaut pour le navigateur
     default_browser_index = 0;  // Non défini
+    // Valeur par défaut pour le terminal
+    default_terminal_index = 0; // Non défini
     // Valeur par défaut pour le mode GPU
     gpu_usage_reporting_mode = 0;  // Process Time cumulative
     
     if (!fp) return;
-    if (fread(&config, sizeof(config), 1, fp) == 1) {
+    size_t bytes_read = fread(&config, 1, sizeof(config), fp);
+    if (bytes_read >= 11) {
         // Préserver les flags temporaires, charger seulement les flags persistants
         app_flags = (app_flags & ~APP_FLAGS_PERSISTENT_MASK) | (config.flags & APP_FLAGS_PERSISTENT_MASK);
         display_flags = config.display_flags;
@@ -2584,9 +2646,12 @@ void load_config(void) {
         sort_column_id = config.sort_column_id;
         sort_order = config.sort_order;
         cpu_graph_type = config.cpu_graph_type;
-        editor_manager.default_index = config.editor_index;
-        browser_manager.default_index = config.browser_index;
+        set_default_app(&editor_manager, config.editor_index);
+        set_default_app(&browser_manager, config.browser_index);
         gpu_usage_reporting_mode = config.gpu_usage_reporting_mode;
+        if (bytes_read >= 12) {
+            set_default_app(&terminal_manager, config.terminal_index);
+        }
     }
     fclose(fp);
 }
@@ -2603,6 +2668,7 @@ void save_config(void) {
     config.refresh_interval = refresh_interval;
     config.editor_index = editor_manager.default_index;
     config.browser_index = browser_manager.default_index;
+    config.terminal_index = terminal_manager.default_index;
     config.gpu_usage_reporting_mode = gpu_usage_reporting_mode;
     fwrite(&config, sizeof(config), 1, fp);
     fclose(fp);

@@ -3,7 +3,8 @@ build/
 bin/
 
 # Temporary and work directories
-*work*
+work/
+work+backups/
 *backup*
 full_old_backup/
 massif_icons.out

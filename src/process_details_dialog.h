@@ -39,6 +39,7 @@ private:
     ProcessDetailsMore m_more;
     bool m_expanded;
     bool m_moreLoaded;
+    bool m_firstLayout;
 
     TQHBoxLayout* m_mainSplitLayout;
     TQWidget* m_leftPanel;

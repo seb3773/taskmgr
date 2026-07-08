@@ -89,6 +89,7 @@ typedef struct {
     gint disk_read_samples[PERFORMANCE_SAMPLES_COUNT];
     gint disk_write_samples[PERFORMANCE_SAMPLES_COUNT];
     gint16 **cpu_core_samples;
+    gdouble *cpu_core_speeds;
     gint8 cpu_core_count;
     gint8 current_index;
     guint8 perf_flags;
@@ -174,6 +175,7 @@ int bridge_task_prio(const GArray *tasks, guint index);
 
 /* System info */
 gdouble get_cpu_speed(void);
+gdouble get_core_cpu_speed(int core_index);
 long get_jiffies_per_second(void);
 gint get_num_cpus(void);
 gulong get_system_uptime(void);

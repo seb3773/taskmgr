@@ -453,6 +453,7 @@ extern guint16 interface_state_flags;
 // Variables de compatibilité (redirigées vers app_manager)
 #define default_editor_index (editor_manager.default_index)
 #define default_browser_index (browser_manager.default_index)
+#define default_terminal_index (terminal_manager.default_index)
 extern gint win_width;
 extern gint win_height;
 extern int page_size;
@@ -497,6 +498,7 @@ typedef struct {
     
     // Pointeurs vers buffers CPU cores (allocation dynamique selon cpu_core_count)
     gint16 **cpu_core_samples;                        // 8 bytes pointeur + allocation dynamique
+    gdouble *cpu_core_speeds;                         // 8 bytes pointeur + allocation dynamique
     
     // ========================================================================
     // MÉTADONNÉES ULTRA-COMPACTES (compression maximale)

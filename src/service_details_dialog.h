@@ -53,6 +53,7 @@ private:
     TQPushButton* m_btnOk;
 
     bool m_expanded;
+    bool m_firstLayout;
 };
 
 #endif // SERVICE_DETAILS_DIALOG_H

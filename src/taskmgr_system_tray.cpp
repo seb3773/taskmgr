@@ -130,12 +130,12 @@ void TaskMgrSystemTray::repositionTooltipPopup()
     int scr = TQApplication::desktop()->screenNumber(this);
     TQRect screen = TQApplication::desktop()->screenGeometry(scr);
     TQPoint anchor = mapToGlobal(TQPoint(width() / 2, height()));
-    TQPoint p(anchor.x() + 2, anchor.y() + 16);
+    TQPoint p(anchor.x() + 2, anchor.y() + 26);
 
     if (p.x() + m_tooltipPopup->width() > screen.x() + screen.width())
         p.rx() -= 4 + m_tooltipPopup->width();
     if (p.y() + m_tooltipPopup->height() > screen.y() + screen.height())
-        p.ry() -= 24 + m_tooltipPopup->height();
+        p.ry() -= 44 + m_tooltipPopup->height();
     if (p.y() < screen.y())
         p.setY(screen.y());
     if (p.x() + m_tooltipPopup->width() > screen.x() + screen.width())

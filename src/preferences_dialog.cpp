@@ -89,11 +89,13 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
     m_chkGauges = new TQCheckBox("Show header system gauges", grpGeneral);
     m_chkSmooth = new TQCheckBox("Enable smooth scrolling", grpGeneral);
     m_chkAntiAlias = new TQCheckBox("Enable anti aliasing", grpGeneral);
+    m_chkIndividualFreq = new TQCheckBox("Display individual frequency in logical processor view", grpGeneral);
 
     grpLayout->addWidget(m_chkMinimizeToTray);
     grpLayout->addWidget(m_chkGauges);
     grpLayout->addWidget(m_chkSmooth);
     grpLayout->addWidget(m_chkAntiAlias);
+    grpLayout->addWidget(m_chkIndividualFreq);
 
     mainLayout->addWidget(grpGeneral);
 
@@ -105,7 +107,9 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
     TQVBoxLayout* measureLayout = new TQVBoxLayout(grpMeasurement->layout());
 
     m_chkPss = new TQCheckBox("Display real memory usage (PSS)", grpMeasurement);
+    m_chkCachedAsFree = new TQCheckBox("Show cached memory as free", grpMeasurement);
     measureLayout->addWidget(m_chkPss);
+    measureLayout->addWidget(m_chkCachedAsFree);
 
     TQHBoxLayout* gpuLayout = new TQHBoxLayout(measureLayout);
     gpuLayout->addWidget(new TQLabel("GPU usage:", grpMeasurement));
@@ -180,7 +184,7 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
     grpApps->setColumnLayout(0, TQt::Vertical);
     grpApps->layout()->setSpacing(6);
     grpApps->layout()->setMargin(10);
-    TQGridLayout* appGrid = new TQGridLayout(grpApps->layout(), 2, 2);
+    TQGridLayout* appGrid = new TQGridLayout(grpApps->layout(), 3, 2);
 
     appGrid->addWidget(new TQLabel("Default text editor:", grpApps), 0, 0);
     m_cmbEditor = new TQComboBox(false, grpApps);
@@ -197,6 +201,14 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
         m_cmbBrowser->insertItem(available_browsers[i].name);
     }
     appGrid->addWidget(m_cmbBrowser, 1, 1);
+
+    appGrid->addWidget(new TQLabel("Default terminal emulator:", grpApps), 2, 0);
+    m_cmbTerminal = new TQComboBox(false, grpApps);
+    m_cmbTerminal->insertItem("System default");
+    for (int i = 0; i < available_terminals_count; i++) {
+        m_cmbTerminal->insertItem(available_terminals[i].name);
+    }
+    appGrid->addWidget(m_cmbTerminal, 2, 1);
 
     mainLayout->addWidget(grpApps);
 
@@ -227,11 +239,14 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
     m_chkMinimizeToTray->setChecked((flags & APP_FLAG_MINIMIZE_TO_TRAY) != 0);
     m_chkGauges->setChecked((flags & APP_FLAG_SHOW_HEADER_GAUGES) != 0);
     m_chkPss->setChecked((flags & APP_FLAG_DISPLAY_PSS) != 0);
+    m_chkCachedAsFree->setChecked((flags & APP_FLAG_SHOW_CACHED_FREE) != 0);
     m_chkSmooth->setChecked((flags & APP_FLAG_SMOOTH_SCROLLING) != 0);
     m_chkAntiAlias->setChecked((flags & APP_FLAG_ENABLE_ANTIALIASING) != 0);
     m_cmbGpuMode->setCurrentItem(bridge_get_gpu_usage_mode());
 
     TQSettings settings;
+    bool displayFreq = settings.readBoolEntry("/taskmgr/displayIndividualFrequency", true);
+    m_chkIndividualFreq->setChecked(displayFreq);
     bool useCustomFg = settings.readBoolEntry("/taskmgr/useCustomFg", false);
     m_cmbFg->setCurrentItem(useCustomFg ? 1 : 0);
     m_fgColor = TQColor(settings.readEntry("/taskmgr/foregroundColor", "#000000"));
@@ -260,6 +275,7 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
 
     m_cmbEditor->setCurrentItem(editor_manager.default_index);
     m_cmbBrowser->setCurrentItem(browser_manager.default_index);
+    m_cmbTerminal->setCurrentItem(terminal_manager.default_index);
 }
 
 PreferencesDialog::~PreferencesDialog()
@@ -362,6 +378,12 @@ void PreferencesDialog::onOkClicked()
         set_optimization_flag(OPTIMIZATION_FLAG_PSS_LOADING, FALSE);
     }
 
+    if (m_chkCachedAsFree->isChecked()) {
+        flags |= APP_FLAG_SHOW_CACHED_FREE;
+    } else {
+        flags &= ~APP_FLAG_SHOW_CACHED_FREE;
+    }
+
     if (m_chkSmooth->isChecked()) {
         flags |= APP_FLAG_SMOOTH_SCROLLING;
     } else {
@@ -378,6 +400,7 @@ void PreferencesDialog::onOkClicked()
     bridge_set_gpu_usage_mode(m_cmbGpuMode->currentItem());
     set_default_app(&editor_manager, m_cmbEditor->currentItem());
     set_default_app(&browser_manager, m_cmbBrowser->currentItem());
+    set_default_app(&terminal_manager, m_cmbTerminal->currentItem());
     save_config();
 
     // Save custom colors
@@ -395,6 +418,7 @@ void PreferencesDialog::onOkClicked()
         settings.writeEntry("/taskmgr/systrayCpuColor", m_systrayCpuColor.name());
         settings.writeEntry("/taskmgr/systrayCustomBgTint", useCustomSystrayBgTint);
         settings.writeEntry("/taskmgr/systrayBgTintColor", m_systrayBgTintColor.name());
+        settings.writeEntry("/taskmgr/displayIndividualFrequency", m_chkIndividualFreq->isChecked());
     }
 
     freeCpuTrayIconCache();

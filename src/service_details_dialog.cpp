@@ -20,7 +20,8 @@
 ServiceDetailsDialog::ServiceDetailsDialog(const TQString& serviceName, TQWidget* parent)
     : TQDialog(parent, "service_details_dialog", true),
       m_serviceName(serviceName),
-      m_expanded(false)
+      m_expanded(false),
+      m_firstLayout(true)
 {
     setCaption("Service Details");
     setBackgroundColor(TQt::white);
@@ -173,14 +174,16 @@ void ServiceDetailsDialog::loadDetails()
 
 void ServiceDetailsDialog::updateLayout()
 {
+    int currentHeight = m_firstLayout ? 570 : height();
+    m_firstLayout = false;
     if (m_expanded) {
         m_rightPanel->show();
         m_btnMoreLess->setText("less details");
-        resize(960, 480);
+        resize(960, currentHeight);
     } else {
         m_rightPanel->hide();
         m_btnMoreLess->setText("more details");
-        resize(540, 480);
+        resize(540, currentHeight);
     }
 }
 

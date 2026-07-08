@@ -310,8 +310,9 @@ private slots:
     void onToggleRootTasks();
     void onToggleOtherTasks();
     void onToggleFullCmdLine();
-    void onToggleCachedAsFree();
     void onToggleGroupProcs();
+    void onExpandAll();
+    void onCollapseAll();
     void onProcessesDetailsToggle();
     void onTrayKeepAboveToggled();
     void onSummaryViewChanged();
@@ -327,7 +328,7 @@ private:
     void applyKeepAbove(bool keepAbove);
     void enterProcessesCompactMode();
     void exitProcessesCompactMode();
-    void updateViewMenuForCompactMode(bool compact);
+    void updateViewMenu();
 
     TQTabWidget* m_tabWidget;
     TQWidget* m_tabBar;
@@ -364,8 +365,10 @@ private:
     int m_viewRootTasksId;
     int m_viewOtherTasksId;
     int m_viewFullCmdLineId;
-    int m_viewCachedAsFreeId;
     int m_viewGroupProcsId;
+    int m_viewSeparatorExpandCollapseId;
+    int m_viewExpandAllId;
+    int m_viewCollapseAllId;
     int m_viewRefreshId;
     int m_viewSpeedItemId;
     int m_viewSeparatorAfterSpeedId;
@@ -386,8 +389,8 @@ private:
 
     TQSize m_savedWindowSize;
     TQSize m_savedMinimumSize;
-    static const int CompactWidth = 430;
-    static const int CompactHeight = 460;
+    static const int CompactWidth = 480;
+    static const int CompactHeight = 500;
 };
 
 #endif // TASKMGR_MAINWINDOW_H

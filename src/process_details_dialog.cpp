@@ -33,7 +33,8 @@ ProcessDetailsDialog::ProcessDetailsDialog(pid_t pid, TQWidget* parent)
     : TQDialog(parent, "process_details_dialog", true),
       m_pid(pid),
       m_expanded(false),
-      m_moreLoaded(false)
+      m_moreLoaded(false),
+      m_firstLayout(true)
 {
     memset(&m_basic, 0, sizeof(m_basic));
     memset(&m_more, 0, sizeof(m_more));
@@ -174,14 +175,16 @@ void ProcessDetailsDialog::loadMoreDetails()
 
 void ProcessDetailsDialog::updateLayout()
 {
+    int currentHeight = m_firstLayout ? 680 : height();
+    m_firstLayout = false;
     if (m_expanded) {
         m_rightPanel->show();
         m_btnMoreLess->setText("less details");
-        resize(960, 480);
+        resize(960, currentHeight);
     } else {
         m_rightPanel->hide();
         m_btnMoreLess->setText("more details");
-        resize(540, 480);
+        resize(540, currentHeight);
     }
 }
 

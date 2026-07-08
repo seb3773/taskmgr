@@ -100,6 +100,7 @@ int main(int argc, char** argv) {
     // Scan available editors and browsers
     scan_available_apps(&editor_manager);
     scan_available_apps(&browser_manager);
+    scan_available_apps(&terminal_manager);
 
     // Initialize C backend subsystems
     init_uid_cache();

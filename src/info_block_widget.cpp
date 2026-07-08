@@ -29,7 +29,12 @@ static TQString getGpuPciLocation() {
         path[len] = '\0';
         char* last_slash = strrchr(path, '/');
         if (last_slash) {
-            return TQString(last_slash + 1);
+            TQString rawLoc(last_slash + 1);
+            unsigned int domain = 0, bus = 0, device = 0, function = 0;
+            if (sscanf(rawLoc.latin1(), "%x:%x:%x.%x", &domain, &bus, &device, &function) == 4) {
+                return TQString("PCI bus %1, device %2, function %3").arg(bus).arg(device).arg(function);
+            }
+            return rawLoc;
         }
     }
     return "Unknown";

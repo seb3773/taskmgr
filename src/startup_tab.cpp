@@ -10,6 +10,7 @@
 #include "backend_bridge.h"
 #include "autostart_manager.h"
 #include "taskmgr_privileged_ops.h"
+#include "privileged_policy.h"
 #include "process_launcher.h"
 #include "app_manager.h"
 #include "preferences_dialog.h"
@@ -206,6 +207,12 @@ void StartupTab::onContextEdit()
 
     TQString path = m_store->data(m_selectedRow, 2).toString();
     if (!path.isEmpty()) {
+        if (taskmgr_autostart_needs_elevation(path.latin1())) {
+            TQMessageBox::critical(this, "Access Denied",
+                "Editing this startup entry requires root privileges.\n"
+                "Please run Task Manager in Root Mode to edit it.");
+            return;
+        }
         taskmgr_launch_edit_file(path.latin1());
     }
 }

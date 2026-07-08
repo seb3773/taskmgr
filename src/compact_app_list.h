@@ -17,6 +17,7 @@
 
 struct CompactAppEntry {
     pid_t repPid;
+    unsigned long windowId;
     TQString displayName;
     TQString iconKey;
     TQString wmClass;

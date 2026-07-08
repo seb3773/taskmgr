@@ -171,7 +171,7 @@ static TQPixmap processListIcon(const TQString& name, bool skipIcons)
  * ==================================================================== */
 
 ProcessesTab::ProcessesTab(TQWidget* parent, const char* name)
-    : TQWidget(parent, name), m_selectedPid(0), m_selectedGroupName(""), m_compactMode(false)
+    : TQWidget(parent, name), m_selectedPid(0), m_selectedWindowId(0), m_selectedGroupName(""), m_compactMode(false)
 {
     TQVBoxLayout* layout = new TQVBoxLayout(this, 0, 4);
 
@@ -885,6 +885,7 @@ void ProcessesTab::refreshCompact()
     int savedScrollY = m_treeView->contentsY();
 
     m_selectedPid = 0;
+    m_selectedWindowId = 0;
     TQtModelIndex selIdx = m_treeView->selectedIndex();
     if (selIdx.isValid()) {
         TQString pidStr = m_store->data(TQtModelIndex(selIdx.nodeId, 9)).toString();
@@ -892,6 +893,11 @@ void ProcessesTab::refreshCompact()
         int pid = pidStr.toInt(&ok);
         if (ok && pid > 0)
             m_selectedPid = pid;
+
+        TQString winIdStr = m_store->data(TQtModelIndex(selIdx.nodeId, 10)).toString();
+        unsigned long winId = winIdStr.toULong(&ok);
+        if (ok && winId > 0)
+            m_selectedWindowId = winId;
     }
 
     m_store->beginBatch();
@@ -926,9 +932,10 @@ void ProcessesTab::refreshCompact()
         TQtRow row(12);
         row[0] = app.displayName;
         row[9] = TQString::number(app.repPid);
+        row[10] = TQString::number(app.windowId);
 
         int nid = m_store->appendNode(TQtTreeStore::RootNodeId, row);
-        if (app.repPid == m_selectedPid)
+        if (app.repPid == m_selectedPid && app.windowId == m_selectedWindowId)
             selectNodeId = nid;
 
         TQtCellStyle iconStyle;
@@ -937,12 +944,13 @@ void ProcessesTab::refreshCompact()
         m_store->setCellStyle(nid, 0, iconStyle);
     }
 
-    m_treeView->setSortingEnabled(true);
-    if (m_treeView->sortColumn() < 0) {
-        m_treeView->sortByColumn(0, true);
-    } else {
-        m_store->sortAllChildren(m_treeView->sortColumn(), m_treeView->sortAscending());
+    int sortCol = m_treeView->sortColumn();
+    bool sortAsc = m_treeView->sortAscending();
+    if (sortCol < 0) {
+        sortCol = 0;
+        sortAsc = true;
     }
+    m_store->sortAllChildren(sortCol, sortAsc);
 
     m_store->endBatch();
 
@@ -951,8 +959,8 @@ void ProcessesTab::refreshCompact()
     else
         m_treeView->clearSelection();
 
-    m_treeView->setContentsPos(savedScrollX, savedScrollY);
     updateCompactColumnWidth();
+    m_treeView->setContentsPos(savedScrollX, savedScrollY);
     m_treeView->unblockPainting();
 }
 

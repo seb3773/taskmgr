@@ -3,6 +3,7 @@
 #include "backend_bridge.h"
 #include "tqtaapainter.h"
 #include <ntqpainter.h>
+#include <ntqsettings.h>
 #include <ntqstyle.h>
 #include <fstream>
 
@@ -463,7 +464,7 @@ void PerformanceGraphWidget::drawSingleGraph(TQPainter& p, const TQRect& r, Grap
         for (int i = 0; i < samples_count; i++) {
             pts1_aa.setPoint(i, pts1[i].x() - r.left(), pts1[i].y() - r.top());
         }
-        TQtAAPainter::drawPolylineAA(&img, pts1_aa.data(), samples_count, strokeColor, 2);
+        TQtAAPainter::drawPolylineAA(&img, pts1_aa.data(), samples_count, strokeColor, 1);
 
         // 5. Draw antialiased stroke 2 if present
         if (data_int2 || data_gint16_sub) {
@@ -484,7 +485,7 @@ void PerformanceGraphWidget::drawSingleGraph(TQPainter& p, const TQRect& r, Grap
                 pts2_aa.setPoint(i, pts2[i].x() - r.left(), pts2[i].y() - r.top());
             }
             TQtAAPainter::drawPolylineAA(&img, pts2_aa.data(), samples_count,
-                                         data_int2 ? m_diskWriteColor : m_gpuVideoColor, 2);
+                                         data_int2 ? m_diskWriteColor : m_gpuVideoColor, 1);
         }
 
         // 6. Draw the offscreen image onto the main painter
@@ -507,7 +508,7 @@ void PerformanceGraphWidget::drawSingleGraph(TQPainter& p, const TQRect& r, Grap
         p.drawPolygon(fillPts1);
 
         // Draw Line 1 (legacy)
-        p.setPen(TQPen(strokeColor, 2));
+        p.setPen(TQPen(strokeColor, 1));
         p.setBrush(TQt::NoBrush);
         for (int i = 0; i < samples_count - 1; i++) {
             p.drawLine(pts1[i], pts1[i+1]);
@@ -527,7 +528,7 @@ void PerformanceGraphWidget::drawSingleGraph(TQPainter& p, const TQRect& r, Grap
                 pts2.setPoint(i, x, y);
             }
 
-            p.setPen(TQPen(data_int2 ? m_diskWriteColor : m_gpuVideoColor, 2));
+            p.setPen(TQPen(data_int2 ? m_diskWriteColor : m_gpuVideoColor, 1));
             for (int i = 0; i < samples_count - 1; i++) {
                 p.drawLine(pts2[i], pts2[i+1]);
             }
@@ -535,6 +536,28 @@ void PerformanceGraphWidget::drawSingleGraph(TQPainter& p, const TQRect& r, Grap
     }
 
     p.restore();
+
+    // Draw individual core frequency if requested
+    if (type == GraphTypeCPULogical && isSubCore) {
+        TQSettings settings;
+        bool displayFreq = settings.readBoolEntry("/taskmgr/displayIndividualFrequency", true);
+        if (displayFreq) {
+            double freq = 0.0;
+            if (perf->cpu_core_speeds && coreIdx < perf->cpu_core_count) {
+                freq = perf->cpu_core_speeds[coreIdx];
+            }
+            if (freq > 0.0) {
+                TQString freqStr = TQString("%1 GHz").arg(freq, 0, 'f', 2);
+                p.save();
+                TQFont f = p.font();
+                f.setPointSize(f.pointSize() - 1);
+                p.setFont(f);
+                p.setPen(TQColor(180, 180, 180));
+                p.drawText(r.left() + 5, r.top() + p.fontMetrics().ascent() + 3, freqStr);
+                p.restore();
+            }
+        }
+    }
 
     // Draw Axis Labels outside the graph boundaries
     if (type != GraphTypeCPULogical && type != GraphTypeGPURender && type != GraphTypeGPUVideo) {
