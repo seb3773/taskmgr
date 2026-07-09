@@ -274,3 +274,58 @@ gboolean taskmgr_execute_program_advanced(const char *program,
         }
     }
 }
+
+gboolean taskmgr_launch_edit_file_with_password(const char *password, const char *file_path)
+{
+    if (!file_path || !file_path[0])
+        return FALSE;
+
+    const char *editor = NULL;
+    if (default_editor_binary_path && default_editor_binary_path[0]) {
+        editor = default_editor_binary_path;
+    } else if (available_editors_count > 0 && available_editors[0].binary_path) {
+        editor = available_editors[0].binary_path;
+    }
+
+    char *sudo_argv[8];
+    sudo_argv[0] = "sudo";
+    sudo_argv[1] = "-u";
+    sudo_argv[2] = "root";
+    sudo_argv[3] = "-S";
+    sudo_argv[4] = "-p";
+    sudo_argv[5] = "";
+    sudo_argv[6] = "--";
+
+    if (editor) {
+        sudo_argv[7] = (char *)editor;
+    } else {
+        sudo_argv[7] = "xdg-open";
+    }
+
+    char *argv_full[10];
+    for (int i = 0; i < 8; i++) {
+        argv_full[i] = sudo_argv[i];
+    }
+    argv_full[8] = (char *)file_path;
+    argv_full[9] = NULL;
+
+    gint stdin_pipe = -1;
+    GError *error = NULL;
+    gboolean ok = g_spawn_async_with_pipes(
+        NULL, argv_full, NULL,
+        G_SPAWN_SEARCH_PATH | G_SPAWN_DO_NOT_REAP_CHILD,
+        NULL, NULL, NULL, &stdin_pipe, NULL, NULL, &error
+    );
+
+    if (ok && stdin_pipe != -1) {
+        if (password) {
+            write(stdin_pipe, password, strlen(password));
+            write(stdin_pipe, "\n", 1);
+        }
+        close(stdin_pipe);
+    }
+    if (error) {
+        g_error_free(error);
+    }
+    return ok;
+}

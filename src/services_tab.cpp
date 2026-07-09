@@ -13,7 +13,6 @@
 #include "taskmgr_privileged_ops.h"
 #include "process_launcher.h"
 #include "tde_icon_loader.h"
-#include "root_credential_vault.h"
 
 #include <ntqpopupmenu.h>
 #include <ntqmessagebox.h>
@@ -270,21 +269,9 @@ void ServicesTab::onContextEdit()
 {
     if (m_selectedRow < 0 || m_selectedRow >= m_store->rowCount()) return;
 
-    if (!root_mode_is_active()) {
-        TQMessageBox::critical(this, "Access Denied",
-            "Editing service unit files requires root privileges.\n"
-            "Please run Task Manager in Root Mode to edit them.");
-        return;
-    }
-
     TQString name = m_store->data(m_selectedRow, 0).toString();
-    char fragment_path[512] = "";
-    if (get_systemd_service_fragment_path(name.latin1(), fragment_path, sizeof(fragment_path)) == 0) {
-        if (!taskmgr_launch_edit_file(fragment_path)) {
-            TQMessageBox::critical(this, "Error", "Failed to launch the text editor.");
-        }
-    } else {
-        TQMessageBox::critical(this, "Error", "Failed to retrieve the service unit file path.");
+    if (!TaskmgrPrivilegedOps::editService(this, name.latin1())) {
+        TQMessageBox::critical(this, "Error", "Failed to launch the text editor.");
     }
 }
 

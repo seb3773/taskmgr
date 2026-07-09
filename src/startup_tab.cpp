@@ -207,13 +207,9 @@ void StartupTab::onContextEdit()
 
     TQString path = m_store->data(m_selectedRow, 2).toString();
     if (!path.isEmpty()) {
-        if (taskmgr_autostart_needs_elevation(path.latin1())) {
-            TQMessageBox::critical(this, "Access Denied",
-                "Editing this startup entry requires root privileges.\n"
-                "Please run Task Manager in Root Mode to edit it.");
-            return;
+        if (!TaskmgrPrivilegedOps::editAutostart(this, path.latin1())) {
+            TQMessageBox::critical(this, "Error", "Failed to launch the text editor.");
         }
-        taskmgr_launch_edit_file(path.latin1());
     }
 }
 

@@ -21,6 +21,8 @@ public:
     static int serviceControl(TQWidget* parent, const char* serviceName, ServiceAction action);
     static int serviceEnableDisable(TQWidget* parent, const char* serviceName, int enable);
     static gboolean disconnectUser(TQWidget* parent, const char* username);
+    static gboolean editService(TQWidget* parent, const char* serviceName);
+    static gboolean editAutostart(TQWidget* parent, const char* filepath);
     static ToggleResult toggleAutostart(TQWidget* parent, const char* filepath,
                                         int enable, char* message);
 };

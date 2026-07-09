@@ -8,6 +8,7 @@
 #include "privileged_policy.h"
 #include "privileged_exec.h"
 #include "backend_bridge.h"
+#include "process_launcher.h"
 
 #include <ntqmessagebox.h>
 #include <ntqstring.h>
@@ -47,6 +48,11 @@ struct AutostartCtx {
     int enable;
     char *message;
     ToggleResult result;
+};
+
+struct EditServiceCtx {
+    const char *filepath;
+    gboolean ok;
 };
 
 static gboolean runEphemeral(TQWidget *parent, const TQString &prompt,
@@ -101,6 +107,13 @@ static gboolean autostartWithPassword(const char *password, void *v)
     c->result = toggle_autostart_entry_with_password(password, c->filepath,
                                                        c->enable, c->message);
     return c->result == TOGGLE_SUCCESS;
+}
+
+static gboolean editServiceWithPassword(const char *password, void *v)
+{
+    EditServiceCtx *c = (EditServiceCtx *)v;
+    c->ok = taskmgr_launch_edit_file_with_password(password, c->filepath);
+    return c->ok;
 }
 
 gboolean TaskmgrPrivilegedOps::killProcess(TQWidget *parent, pid_t pid, int signal)
@@ -189,4 +202,41 @@ ToggleResult TaskmgrPrivilegedOps::toggleAutostart(TQWidget *parent, const char 
         return ctx.result;
 
     return TOGGLE_ERROR_UNKNOWN;
+}
+
+gboolean TaskmgrPrivilegedOps::editService(TQWidget *parent, const char *serviceName)
+{
+    char fragment_path[512] = "";
+    if (get_systemd_service_fragment_path(serviceName, fragment_path, sizeof(fragment_path)) != 0) {
+        TQMessageBox::critical(parent, "Error", "Failed to retrieve the service unit file path.");
+        return FALSE;
+    }
+
+    if (root_mode_is_active())
+        return taskmgr_launch_edit_file(fragment_path);
+
+    EditServiceCtx ctx = { fragment_path, FALSE };
+    if (runEphemeral(parent,
+                     TQString("Administrator password required to edit this service unit file."),
+                     editServiceWithPassword, &ctx))
+        return ctx.ok;
+
+    return FALSE;
+}
+
+gboolean TaskmgrPrivilegedOps::editAutostart(TQWidget *parent, const char *filepath)
+{
+    if (!filepath || !*filepath)
+        return FALSE;
+
+    if (root_mode_is_active() || !taskmgr_autostart_needs_elevation(filepath))
+        return taskmgr_launch_edit_file(filepath);
+
+    EditServiceCtx ctx = { filepath, FALSE };
+    if (runEphemeral(parent,
+                     TQString("Administrator password required to edit this startup entry."),
+                     editServiceWithPassword, &ctx))
+        return ctx.ok;
+
+    return FALSE;
 }
