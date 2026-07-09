@@ -995,3 +995,21 @@ int systemd_service_enable_disable(const char *service_name, int enable) {
     
     return success ? 0 : -1;
 }
+
+int get_systemd_service_fragment_path(const char *service_name, char *path, size_t path_len) {
+    if (!service_name || !path || path_len == 0) return -1;
+    
+    sd_bus *bus = get_systemd_bus();
+    if (!bus) return -1;
+    
+    char object_path[512];
+    if (get_service_object_path(bus, service_name, object_path, sizeof(object_path)) < 0) {
+        sd_bus_unref(bus);
+        return -1;
+    }
+    
+    int r = get_service_property_string(bus, object_path, "org.freedesktop.systemd1.Unit", 
+                                        "FragmentPath", path, path_len);
+    sd_bus_unref(bus);
+    return (r >= 0 && strcmp(path, "N/A") != 0 && strlen(path) > 0) ? 0 : -1;
+}

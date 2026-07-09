@@ -42,6 +42,7 @@ private slots:
     void onContextDisable();
     void onContextSearchOnline();
     void onContextDetails();
+    void onContextEdit();
 
 private:
     void setupColumns();

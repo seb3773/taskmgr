@@ -79,6 +79,7 @@ SystemdServiceList* get_systemd_services(void);
 int get_systemd_service_details(const char *service_name, SystemdServiceDetails *details);
 int systemd_service_control(const char *service_name, ServiceAction action);
 int systemd_service_enable_disable(const char *service_name, int enable);
+int get_systemd_service_fragment_path(const char *service_name, char *path, size_t path_len);
 
 // Fonctions utilitaires
 SystemdServiceList* systemd_service_list_new(void);
