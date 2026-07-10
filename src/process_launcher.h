@@ -23,6 +23,8 @@ gboolean taskmgr_execute_program_advanced(const char *program,
                                           const char *username,
                                           const char *password);
 
+gboolean taskmgr_launch_tde_run_dialog(void);
+
 #ifdef __cplusplus
 }
 #endif

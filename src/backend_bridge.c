@@ -332,6 +332,14 @@ void bridge_set_app_flags(guint16 flags) {
     app_flags = flags;
 }
 
+guint16 bridge_get_display_flags(void) {
+    return display_flags;
+}
+
+void bridge_set_display_flags(guint16 flags) {
+    display_flags = flags;
+}
+
 uid_t bridge_get_own_uid(void) {
     return own_uid;
 }

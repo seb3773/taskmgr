@@ -256,6 +256,8 @@ long long get_non_paged_pool(void);
 /* App state */
 guint16 bridge_get_app_flags(void);
 void bridge_set_app_flags(guint16 flags);
+guint16 bridge_get_display_flags(void);
+void bridge_set_display_flags(guint16 flags);
 uid_t bridge_get_own_uid(void);
 
 /* Config */

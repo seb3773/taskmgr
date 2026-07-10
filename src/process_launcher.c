@@ -329,3 +329,14 @@ gboolean taskmgr_launch_edit_file_with_password(const char *password, const char
     }
     return ok;
 }
+
+gboolean taskmgr_launch_tde_run_dialog(void)
+{
+    char *argv[5];
+    argv[0] = "dcop";
+    argv[1] = "kdesktop";
+    argv[2] = "KDesktopIface";
+    argv[3] = "popupExecuteCommand";
+    argv[4] = NULL;
+    return taskmgr_spawn_async_argv(argv);
+}

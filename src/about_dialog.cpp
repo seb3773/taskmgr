@@ -14,7 +14,7 @@
 void showAboutDialog(TQWidget* parent)
 {
     TQDialog dlg(parent, "about_dialog", true);
-    dlg.setCaption("About Task Manager");
+    dlg.setCaption("About TaskMgr");
     dlg.setBackgroundColor(TQt::white);
     dlg.setFixedWidth(360);
 

@@ -90,12 +90,14 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
     m_chkSmooth = new TQCheckBox("Enable smooth scrolling", grpGeneral);
     m_chkAntiAlias = new TQCheckBox("Enable anti aliasing", grpGeneral);
     m_chkIndividualFreq = new TQCheckBox("Display individual frequency in logical processor view", grpGeneral);
+    m_chkUseTdeRunDialog = new TQCheckBox("Use TDE 'Run Command' dialog for new tasks", grpGeneral);
 
     grpLayout->addWidget(m_chkMinimizeToTray);
     grpLayout->addWidget(m_chkGauges);
     grpLayout->addWidget(m_chkSmooth);
     grpLayout->addWidget(m_chkAntiAlias);
     grpLayout->addWidget(m_chkIndividualFreq);
+    grpLayout->addWidget(m_chkUseTdeRunDialog);
 
     mainLayout->addWidget(grpGeneral);
 
@@ -243,6 +245,9 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
     m_chkSmooth->setChecked((flags & APP_FLAG_SMOOTH_SCROLLING) != 0);
     m_chkAntiAlias->setChecked((flags & APP_FLAG_ENABLE_ANTIALIASING) != 0);
     m_cmbGpuMode->setCurrentItem(bridge_get_gpu_usage_mode());
+
+    guint16 d_flags = bridge_get_display_flags();
+    m_chkUseTdeRunDialog->setChecked((d_flags & DISPLAY_FLAG_USE_TDE_RUN_DIALOG) != 0);
 
     TQSettings settings;
     bool displayFreq = settings.readBoolEntry("/taskmgr/displayIndividualFrequency", true);
@@ -401,6 +406,15 @@ void PreferencesDialog::onOkClicked()
     set_default_app(&editor_manager, m_cmbEditor->currentItem());
     set_default_app(&browser_manager, m_cmbBrowser->currentItem());
     set_default_app(&terminal_manager, m_cmbTerminal->currentItem());
+
+    guint16 d_flags = bridge_get_display_flags();
+    if (m_chkUseTdeRunDialog->isChecked()) {
+        d_flags |= DISPLAY_FLAG_USE_TDE_RUN_DIALOG;
+    } else {
+        d_flags &= ~DISPLAY_FLAG_USE_TDE_RUN_DIALOG;
+    }
+    bridge_set_display_flags(d_flags);
+
     save_config();
 
     // Save custom colors

@@ -8,6 +8,7 @@
 #include "preferences_dialog.h"
 #include "run_new_task_dialog.h"
 #include "about_dialog.h"
+#include "process_launcher.h"
 #include "performance_tab.h"
 #include "cpu_tray_icon.h"
 #include "taskmgr_system_tray.h"
@@ -256,7 +257,7 @@ void TaskMgrMainWindow::createMenuBar()
 
     /* ---- Help menu ---- */
     TQPopupMenu* helpMenu = new TQPopupMenu(this);
-    helpMenu->insertItem("&About Task Manager", this, SLOT(onMenuAbout()));
+    helpMenu->insertItem("&About", this, SLOT(onMenuAbout()));
 
     /* ---- Menu bar ---- */
     menuBar()->insertItem("&File",  m_fileMenu);
@@ -417,8 +418,12 @@ void TaskMgrMainWindow::onMenuQuit()
 
 void TaskMgrMainWindow::onMenuRunNewTask()
 {
-    RunNewTaskDialog dlg(this);
-    dlg.exec();
+    if (bridge_get_display_flags() & DISPLAY_FLAG_USE_TDE_RUN_DIALOG) {
+        taskmgr_launch_tde_run_dialog();
+    } else {
+        RunNewTaskDialog dlg(this);
+        dlg.exec();
+    }
 }
 
 void TaskMgrMainWindow::applyRootModeUi()

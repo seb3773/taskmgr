@@ -210,10 +210,6 @@ protected:
             if (colW > 0) {
                 int colX = m_treeView->columnPos(col) - m_treeView->contentsX() + frameOfs;
 
-                // Divider lines extending full height (including bridge zone)
-                p.setPen(cg.dark());
-                p.drawLine(colX + colW - 1, 0, colX + colW - 1, h);
-
                 TQString text;
                 TQString label = m_treeView->horizontalHeader()->label(col);
                 if (label == "CPU") {
