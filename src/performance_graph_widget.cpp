@@ -2,6 +2,7 @@
 #include "performance_tab.h"
 #include "backend_bridge.h"
 #include "tqtaapainter.h"
+#include "preferences_dialog.h"
 #include <ntqpainter.h>
 #include <ntqsettings.h>
 #include <ntqstyle.h>
@@ -305,6 +306,25 @@ void PerformanceGraphWidget::drawSingleGraph(TQPainter& p, const TQRect& r, Grap
         }
     }
 
+    // Load graph colors from GraphColors namespace
+    m_cpuColor = GraphColors::cpu;
+    m_cpuFillColor = GraphColors::getFillColor(GraphColors::cpu);
+    m_ramColor = GraphColors::ram;
+    m_ramFillColor = GraphColors::getFillColor(GraphColors::ram);
+    m_diskColor = GraphColors::diskRead;
+    m_diskFillColor = GraphColors::getFillColor(GraphColors::diskRead);
+    m_diskWriteColor = GraphColors::diskWrite;
+    m_diskWriteFillColor = GraphColors::getFillColor(GraphColors::diskWrite);
+    m_netColor = GraphColors::netRecv;
+    m_netFillColor = GraphColors::getFillColor(GraphColors::netRecv);
+    m_netTxColor = GraphColors::netSend;
+    m_gpuColor = GraphColors::gpu;
+    m_gpuFillColor = GraphColors::getFillColor(GraphColors::gpu);
+    m_gpuRenderColor = GraphColors::gpuRender;
+    m_gpuRenderFillColor = GraphColors::getFillColor(GraphColors::gpuRender);
+    m_gpuVideoColor = GraphColors::gpuVideo;
+    m_gpuVideoFillColor = GraphColors::getFillColor(GraphColors::gpuVideo);
+
     // Determine colors and samples
     TQColor strokeColor = m_cpuColor;
     TQColor fillColor = m_cpuFillColor;
@@ -342,13 +362,13 @@ void PerformanceGraphWidget::drawSingleGraph(TQPainter& p, const TQRect& r, Grap
                 // If it is the disk main graph, we show active time
                 // If it is the disk read/write graph (subgraph), we show throughput
                 if (isSubCore) { // Let's use isSubCore to mean Read/Write throughput graph
-                    data_int1 = (const int*)disk->read_samples;
-                    data_int2 = (const int*)disk->write_samples;
+                    data_int1 = (disk->read_samples);
+                    data_int2 = (disk->write_samples);
                     autoScale = true;
-                    strokeColor = m_netColor; // Blue for read
-                    fillColor = TQColor(230, 240, 255);
+                    strokeColor = m_diskColor;
+                    fillColor = m_diskFillColor;
                 } else {
-                    data_int1 = (const int*)disk->activity_samples;
+                    data_int1 = (disk->activity_samples);
                     strokeColor = m_diskColor;
                     fillColor = m_diskFillColor;
                 }
@@ -361,7 +381,7 @@ void PerformanceGraphWidget::drawSingleGraph(TQPainter& p, const TQRect& r, Grap
                 data_int1 = (const int*)net->rx_samples;
                 data_int2 = (const int*)net->tx_samples;
                 autoScale = true;
-                strokeColor = m_netColor; // Blue for Rx
+                strokeColor = m_netColor;
                 fillColor = m_netFillColor;
             }
             break;
@@ -410,6 +430,8 @@ void PerformanceGraphWidget::drawSingleGraph(TQPainter& p, const TQRect& r, Grap
 
     double width_scale = (double)r.width() / (double)(PERFORMANCE_SAMPLES_COUNT - 1);
     double height_scale = (double)r.height() / (double)max_val;
+
+    TQColor strokeColor2 = (type == GraphTypeDisk) ? m_diskWriteColor : m_netTxColor;
 
     double x_offset = 0.0;
     if (bridge_get_app_flags() & APP_FLAG_SMOOTH_SCROLLING) {
@@ -484,8 +506,7 @@ void PerformanceGraphWidget::drawSingleGraph(TQPainter& p, const TQRect& r, Grap
             for (int i = 0; i < samples_count; i++) {
                 pts2_aa.setPoint(i, pts2[i].x() - r.left(), pts2[i].y() - r.top());
             }
-            TQtAAPainter::drawPolylineAA(&img, pts2_aa.data(), samples_count,
-                                         data_int2 ? m_diskWriteColor : m_gpuVideoColor, 1);
+            TQtAAPainter::drawPolylineAA(&img, pts2_aa.data(), samples_count, strokeColor2, 1);
         }
 
         // 6. Draw the offscreen image onto the main painter
@@ -528,7 +549,7 @@ void PerformanceGraphWidget::drawSingleGraph(TQPainter& p, const TQRect& r, Grap
                 pts2.setPoint(i, x, y);
             }
 
-            p.setPen(TQPen(data_int2 ? m_diskWriteColor : m_gpuVideoColor, 1));
+            p.setPen(TQPen(strokeColor2, 1));
             for (int i = 0; i < samples_count - 1; i++) {
                 p.drawLine(pts2[i], pts2[i+1]);
             }
@@ -933,7 +954,7 @@ void PerformanceGraphWidget::paintEvent(TQPaintEvent* e)
             // Draw placeholder frame for disabled disk performance counters
             p.save();
             p.setPen(TQColor(220, 222, 226));
-            p.setBrush(TQColor(250, 250, 250)); // Light grey/white placeholder bg
+            p.setBrush(colorGroup().base()); // Respects custom/theme background
             p.drawRect(graphRect);
 
             p.setPen(TQColor(60, 60, 60));

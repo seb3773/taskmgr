@@ -173,10 +173,10 @@ void TaskMgrMainWindow::createMenuBar()
 {
     menuBar()->setFrameStyle(TQFrame::NoFrame);
 
-    /* ---- File menu ---- */
     m_fileMenu = new TQPopupMenu(this);
     m_fileMenu->insertItem("&Run new task...", this, SLOT(onMenuRunNewTask()));
     m_fileMenu->insertSeparator();
+    m_fileMenu->insertItem("&Point and kill", this, SLOT(onMenuPointAndKill()));
 
     if (getuid() != 0) {
         m_rootModeMenuId = m_fileMenu->insertItem("Root &mode", this, SLOT(onMenuRootMode()));
@@ -423,6 +423,72 @@ void TaskMgrMainWindow::onMenuRunNewTask()
     } else {
         RunNewTaskDialog dlg(this);
         dlg.exec();
+    }
+}
+
+void TaskMgrMainWindow::onMenuPointAndKill()
+{
+    // Minimize main window during point operation
+    this->showMinimized();
+    TQApplication::flush();
+    usleep(150000); // 150ms delay to let window manager complete minimization
+
+    // Override cursor to cross
+    TQApplication::setOverrideCursor(TQt::crossCursor);
+    TQApplication::flush();
+
+    // Pick window PID
+    pid_t pid = backend_pick_window_pid();
+
+    // Restore cursor
+    TQApplication::restoreOverrideCursor();
+
+    // Restore main window
+    this->showNormal();
+    this->raise();
+    this->setActiveWindow();
+    TQApplication::flush();
+
+    if (pid <= 1) {
+        return;
+    }
+
+    if (pid == getpid()) {
+        TQMessageBox::information(this, "Point and Kill", "You cannot kill Task Manager itself.");
+        return;
+    }
+
+    // Retrieve process name
+    char nameBuf[128];
+    backend_get_process_name(pid, nameBuf, sizeof(nameBuf));
+    TQString procName = TQString::fromUtf8(nameBuf);
+
+    // Switch to Processes tab and highlight/select the target process!
+    m_tabWidget->showPage(m_processesTab);
+    m_processesTabContent->selectPid(pid);
+    TQApplication::flush();
+
+    TQString confirmMessage = TQString("Are you sure you want to terminate the process \"%1\" (PID %2)?\n"
+                                       "This will immediately force the process to exit.")
+                              .arg(procName)
+                              .arg(pid);
+
+    TQMessageBox mb("Confirm Kill",
+                    confirmMessage,
+                    TQMessageBox::Question,
+                    TQMessageBox::Yes | TQMessageBox::Default,
+                    TQMessageBox::No | TQMessageBox::Escape,
+                    TQMessageBox::NoButton,
+                    this);
+    mb.setButtonText(TQMessageBox::Yes, "Kill");
+    mb.setButtonText(TQMessageBox::No, "Cancel");
+
+    if (mb.exec() == TQMessageBox::Yes) {
+        int res = backend_kill_pid(pid);
+        if (res < 0) {
+            TQMessageBox::critical(this, "Error",
+                TQString("Failed to kill process \"%1\" (PID %2).\nYou may need administrator privileges.").arg(procName).arg(pid));
+        }
     }
 }
 
@@ -720,7 +786,6 @@ bool TaskMgrMainWindow::event(TQEvent* e)
         if ((bridge_get_app_flags() & APP_FLAG_MINIMIZE_TO_TRAY) && isMinimized()) {
             saved_win_x = x();
             saved_win_y = y();
-            showNormal();
             hide();
             guint16 flags = bridge_get_app_flags();
             bridge_set_app_flags(flags | APP_FLAG_WINDOW_HIDDEN);
@@ -741,7 +806,7 @@ void TaskMgrMainWindow::toggleFromTray()
             bridge_set_app_flags(flags & ~APP_FLAG_WINDOW_HIDDEN);
             if (saved_win_x >= 0 && saved_win_y >= 0)
                 move(saved_win_x, saved_win_y);
-            show();
+            showNormal();
             raise();
             setActiveWindow();
         } else {

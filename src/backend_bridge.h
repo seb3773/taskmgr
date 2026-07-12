@@ -180,13 +180,15 @@ long get_jiffies_per_second(void);
 gint get_num_cpus(void);
 gulong get_system_uptime(void);
 gint get_process_count(void);
-gint get_thread_count(void);
+long get_thread_count(void);
 gint get_handle_count(void);
 void get_swap_info(guint64 *swap_total, guint64 *swap_free);
 
 /* Initialization / cleanup */
 void init_uid_cache(void);
 void cleanup_uid_cache(void);
+void cleanup_system_status(void);
+void cleanup_disk_system_info(void);
 void load_config(void);
 void save_config(void);
 
@@ -275,6 +277,10 @@ void bridge_set_refresh_interval(gint interval_ms);
 
 user_with_sessions_t **get_logged_in_users_with_session_info(void);
 gboolean disconnect_user_sessions(const char *username);
+
+pid_t backend_pick_window_pid(void);
+int backend_kill_pid(pid_t pid);
+void backend_get_process_name(pid_t pid, char* name_buffer, int buffer_size);
 
 #ifdef __cplusplus
 } /* extern "C" */

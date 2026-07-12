@@ -89,10 +89,8 @@ static inline pid_t get_ppid_fast(pid_t pid) {
         return cached_ppid_value;
     }
 
-    char stat_path[32];
-    strcpy(stat_path, "/proc/");
-    format_uint32(stat_path + 6, pid);
-    strcat(stat_path, "/stat");
+    char stat_path[64];
+    format_proc_path(stat_path, sizeof(stat_path), pid, "stat");
 
     int fd = open(stat_path, O_RDONLY);
     if (fd < 0) return -1;
@@ -271,66 +269,10 @@ int batch_read_at(int dirfd, const char* filename, char* buffer, size_t buffer_s
     return (int)bytes_read;
 }
 
-// Version optimisée avec buffer consolidé et prefetching SIMD
-HOT_FUNCTION
-int batch_read_at_optimized(int dirfd, const char* filename, char* buffer, size_t buffer_size,
-                           char* consolidated_buffer, size_t* offset) {
-    int fd = openat(dirfd, filename, O_RDONLY);
-    if (fd < 0) {
-        buffer[0] = '\0';
-        return -1;
-    }
-
-    // Vérifier si il reste assez de place dans le buffer consolidé
-    if (*offset + buffer_size > CONSOLIDATED_BUFFER_SIZE) {
-        // Buffer plein, fallback vers lecture directe
-        close(fd);
-        fd = openat(dirfd, filename, O_RDONLY);
-        if (fd < 0) {
-            buffer[0] = '\0';
-            return -1;
-        }
-        ssize_t bytes_read = read(fd, buffer, buffer_size - 1);
-        close(fd);
-        if (bytes_read <= 0) {
-            buffer[0] = '\0';
-            return -1;
-        }
-        buffer[bytes_read] = '\0';
-        return (int)bytes_read;
-    }
-
-    // Lire dans le buffer consolidé pour améliorer la localité cache
-    ssize_t bytes_read = read(fd, consolidated_buffer + *offset, buffer_size - 1);
-    close(fd);
-
-    if (bytes_read <= 0) {
-        buffer[0] = '\0';
-        return -1;
-    }
-
-    // Prefetch des données pour le parsing suivant
-    __builtin_prefetch(consolidated_buffer + *offset, 0, 3);
-
-    // Copier depuis le buffer consolidé vers le buffer de destination
-    memcpy(buffer, consolidated_buffer + *offset, bytes_read);
-    buffer[bytes_read] = '\0';
-
-    // Avancer l'offset dans le buffer consolidé
-    *offset += bytes_read + 1;  // +1 pour alignement
-
-    return (int)bytes_read;
-}
-
-// Version ultra-optimisée avec buffer consolidé et prefetching SIMD
+// Version optimisée avec prefetching cache CPU
 HOT_FUNCTION
 int batch_read_proc_data_optimized(pid_t* pids, int count, proc_data_cache_t* cache) {
     int successful_reads = 0;
-
-    // Buffer consolidé THREAD-LOCAL statique 64KB pour tous les fichiers /proc d'un batch
-    // OPTIMISATION: Thread-local évite allocation répétée (gain 2-3% CPU)
-    static __thread char consolidated_buffer[CONSOLIDATED_BUFFER_SIZE];
-    size_t buffer_offset = 0;
     
     for (int i = 0; i < count; i++) {
         // Prefetch CPU cache des données du prochain processus
@@ -354,38 +296,29 @@ int batch_read_proc_data_optimized(pid_t* pids, int count, proc_data_cache_t* ca
         int dirfd = open(proc_path, O_RDONLY | O_DIRECTORY);
         if (dirfd < 0) continue;
         
-        // NOUVEAU: Hint au kernel pour prefetch agressif des fichiers /proc
-        // POSIX_FADV_WILLNEED demande au kernel de charger en cache page
-        posix_fadvise(dirfd, 0, 0, POSIX_FADV_WILLNEED);
-        
-        // Lire tous les fichiers avec buffer consolidé et prefetching SIMD
-        if (batch_read_at_optimized(dirfd, "stat", cache[i].stat_buffer, sizeof(cache[i].stat_buffer), 
-                                   consolidated_buffer, &buffer_offset) > 0) {
+        // Lire tous les fichiers directement dans le cache (plus efficace, évite les recopies de buffers)
+        if (batch_read_at(dirfd, "stat", cache[i].stat_buffer, sizeof(cache[i].stat_buffer)) > 0) {
             cache[i].valid_stat = TRUE;
         }
         
-        if (batch_read_at_optimized(dirfd, "statm", cache[i].statm_buffer, sizeof(cache[i].statm_buffer),
-                                   consolidated_buffer, &buffer_offset) > 0) {
+        if (batch_read_at(dirfd, "statm", cache[i].statm_buffer, sizeof(cache[i].statm_buffer)) > 0) {
             cache[i].valid_statm = TRUE;
         }
         
         // Lire smaps_rollup seulement si PSS activé et préférence utilisateur active
         if (IS_PSS_LOADING_ENABLED() && (app_flags & APP_FLAG_DISPLAY_PSS)) {
-            if (batch_read_at_optimized(dirfd, "smaps_rollup", cache[i].smaps_buffer, sizeof(cache[i].smaps_buffer),
-                                       consolidated_buffer, &buffer_offset) > 0) {
+            if (batch_read_at(dirfd, "smaps_rollup", cache[i].smaps_buffer, sizeof(cache[i].smaps_buffer)) > 0) {
                 cache[i].valid_smaps = TRUE;
             }
         }
         
         // Lire cmdline pour les noms de processus
-        if (batch_read_at_optimized(dirfd, "cmdline", cache[i].cmdline_buffer, sizeof(cache[i].cmdline_buffer),
-                                   consolidated_buffer, &buffer_offset) > 0) {
+        if (batch_read_at(dirfd, "cmdline", cache[i].cmdline_buffer, sizeof(cache[i].cmdline_buffer)) > 0) {
             cache[i].valid_cmdline = TRUE;
         }
         
         // NOUVEAU: Lire status pour UID (remplace stat() syscall - gain 1-3% CPU)
-        if (batch_read_at_optimized(dirfd, "status", cache[i].status_buffer, sizeof(cache[i].status_buffer),
-                                   consolidated_buffer, &buffer_offset) > 0) {
+        if (batch_read_at(dirfd, "status", cache[i].status_buffer, sizeof(cache[i].status_buffer)) > 0) {
             cache[i].valid_status = TRUE;
             // Parser UID immédiatement
             if (fast_parse_uid_from_status(cache[i].status_buffer, &cache[i].uid) != 0) {
@@ -763,8 +696,6 @@ void get_task_details_from_cache(const proc_data_cache_t* cache, struct task *ta
     const gchar* cached_username = get_cached_username(task->uid);
     task->uname = get_shared_uname(task->uid, cached_username);
     
-    // Initialiser le cache hash pour comparaisons rapides (gain 2-2.5% CPU)
-    task->cached_hash = compute_task_hash_quick(task);
 }
 
 
@@ -781,14 +712,7 @@ void get_task_details(pid_t pid,struct task *task) {
 
 
 
-// Structure pour getdents64 (optimisation Linux)
-struct linux_dirent64 {
-    ino64_t d_ino;
-    off64_t d_off;
-    unsigned short d_reclen;
-    unsigned char d_type;
-    char d_name[];
-};
+
 
 // FONCTION OBSOLÈTE - proc_filter supprimée car non utilisée avec getdents64
 
@@ -941,54 +865,18 @@ gboolean get_cpu_usage_from_proc(system_status *sys_stat) {
 
 
 gboolean get_system_status (system_status *sys_stat) {
-    // OPTIMISATION SYSCALL: Remplacer fopen/fgets/fclose par open/read/close
-    // Gain: ~0.5% CPU, lecture directe d'un coup au lieu de ligne par ligne
-    // OPTIMISATION CACHE: MemTotal vient du cache (ne change jamais) - gain 1-2%
-    static char meminfo_buffer[8192];  // /proc/meminfo ~3-4 KB, buffer statique réutilisable
-    int reach;
-    static int cpu_count;
+    static int cpu_count = 0;
     
-    int fd = open("/proc/meminfo", O_RDONLY);
-    if (fd < 0) return FALSE;
-    
-    ssize_t bytes = read(fd, meminfo_buffer, sizeof(meminfo_buffer) - 1);
-    close(fd);
-    
-    if (bytes <= 0) return FALSE;
-    meminfo_buffer[bytes] = '\0';
-    
-    // MemTotal: Utiliser le cache au lieu de parser (OPTIMISATION)
     sys_stat->mem_total = get_cached_mem_total();
+    sys_stat->mem_free = get_cached_mem_free();
+    sys_stat->mem_cached = get_cached_mem_cached();
+    sys_stat->mem_buffered = get_cached_mem_buffered();
     
-    // Parser le buffer pour les valeurs dynamiques uniquement
-    reach = 0;
-    sys_stat->mem_cached = 0;
-    
-    char* line = meminfo_buffer;
-    char* next_line;
-    
-    while (line && *line && reach < 4) {  // reach < 4 au lieu de 5 (on skip MemTotal)
-        next_line = strchr(line, '\n');
-        if (next_line) *next_line = '\0';
-        
-        // SKIP MemTotal (déjà dans le cache)
-        if (!strncmp(line, "MemFree:", 8))
-            sys_stat->mem_free = fast_atoll(line + 9), reach++;
-        else if (!strncmp(line, "Cached:", 7))
-            sys_stat->mem_cached += fast_atoll(line + 8), reach++;
-        else if (!strncmp(line, "SReclaimable:", 13))
-            sys_stat->mem_cached += fast_atoll(line + 14), reach++;
-        else if (!strncmp(line, "Buffers:", 8))
-            sys_stat->mem_buffered = fast_atoll(line + 9), reach++;
-        
-        if (!next_line) break;
-        line = next_line + 1;
-    }
     if(!cpu_count)
     {
         cpu_count = get_cached_nprocessors();  // Utiliser cache au lieu de sysconf
     }
-    sys_stat->cpu_count=cpu_count;
+    sys_stat->cpu_count = cpu_count;
     return TRUE;
 }
 

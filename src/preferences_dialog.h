@@ -16,20 +16,18 @@ public:
     PreferencesDialog(TQWidget* parent = 0);
     ~PreferencesDialog();
 
+protected:
+    bool eventFilter(TQObject* watched, TQEvent* e);
+
 private slots:
     void onOkClicked();
     void onCancelClicked();
-    void onFgModeChanged(int index);
-    void onBgModeChanged(int index);
-    void onFgColorClicked();
-    void onBgColorClicked();
-    void onSystrayCpuModeChanged(int index);
-    void onSystrayCpuColorClicked();
-    void onSystrayBgTintModeChanged(int index);
-    void onSystrayBgTintColorClicked();
+    void onColorComboChanged(int index);
+    void onColorButtonClicked();
 
 private:
     void updateColorButton(TQPushButton* btn, const TQColor& color);
+    TQColor getButtonColor(TQPushButton* btn);
 
     TQCheckBox* m_chkMinimizeToTray;
     TQCheckBox* m_chkGauges;
@@ -49,6 +47,50 @@ private:
     TQPushButton* m_btnBgColor;
     TQColor m_bgColor;
 
+    TQComboBox* m_cmbSelBg;
+    TQPushButton* m_btnSelBg;
+    TQColor m_selBgColor;
+
+    TQComboBox* m_cmbSelFg;
+    TQPushButton* m_btnSelFg;
+    TQColor m_selFgColor;
+
+    TQComboBox* m_cmbCpu;
+    TQPushButton* m_btnCpu;
+    TQColor m_cpuColor;
+
+    TQComboBox* m_cmbRam;
+    TQPushButton* m_btnRam;
+    TQColor m_ramColor;
+
+    TQComboBox* m_cmbNetRecv;
+    TQPushButton* m_btnNetRecv;
+    TQColor m_netRecvColor;
+
+    TQComboBox* m_cmbNetSend;
+    TQPushButton* m_btnNetSend;
+    TQColor m_netSendColor;
+
+    TQComboBox* m_cmbDiskRead;
+    TQPushButton* m_btnDiskRead;
+    TQColor m_diskReadColor;
+
+    TQComboBox* m_cmbDiskWrite;
+    TQPushButton* m_btnDiskWrite;
+    TQColor m_diskWriteColor;
+
+    TQComboBox* m_cmbGpu;
+    TQPushButton* m_btnGpu;
+    TQColor m_gpuColor;
+
+    TQComboBox* m_cmbGpuRender;
+    TQPushButton* m_btnGpuRender;
+    TQColor m_gpuRenderColor;
+
+    TQComboBox* m_cmbGpuVideo;
+    TQPushButton* m_btnGpuVideo;
+    TQColor m_gpuVideoColor;
+
     TQComboBox* m_cmbSystrayCpu;
     TQPushButton* m_btnSystrayCpuColor;
     TQColor m_systrayCpuColor;
@@ -56,6 +98,22 @@ private:
     TQComboBox* m_cmbSystrayBgTint;
     TQPushButton* m_btnSystrayBgTintColor;
     TQColor m_systrayBgTintColor;
+
+    TQComboBox* m_cmbGaugeBg;
+    TQPushButton* m_btnGaugeBg;
+    TQColor m_gaugeBgColor;
+
+    TQComboBox* m_cmbGaugeCpu;
+    TQPushButton* m_btnGaugeCpu;
+    TQColor m_gaugeCpuColor;
+
+    TQComboBox* m_cmbGaugeRam;
+    TQPushButton* m_btnGaugeRam;
+    TQColor m_gaugeRamColor;
+
+    TQComboBox* m_cmbGaugeSwap;
+    TQPushButton* m_btnGaugeSwap;
+    TQColor m_gaugeSwapColor;
 
     TQComboBox* m_cmbEditor;
     TQComboBox* m_cmbBrowser;
@@ -66,5 +124,29 @@ private:
 };
 
 void applyAppPalette();
+
+namespace GraphColors {
+    extern TQColor cpu;
+    extern TQColor ram;
+    extern TQColor netRecv;
+    extern TQColor netSend;
+    extern TQColor diskRead;
+    extern TQColor diskWrite;
+    extern TQColor gpu;
+    extern TQColor gpuRender;
+    extern TQColor gpuVideo;
+
+    void load();
+    TQColor getFillColor(const TQColor& stroke);
+}
+
+namespace GaugeColors {
+    extern TQColor bg;
+    extern TQColor cpu;
+    extern TQColor ram;
+    extern TQColor swap;
+
+    void load();
+}
 
 #endif // PREFERENCES_DIALOG_H

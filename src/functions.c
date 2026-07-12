@@ -23,6 +23,9 @@
 #include "service_manager.h"
 #include "disk_manager.h"
 #include "network_manager.h"
+gboolean get_cpu_usage_from_proc(system_status *sys_stat);
+gdouble get_core_cpu_speed(int core_index);
+
 // ============================================================================
 // OPTIMISATION HASH TABLE - Recherche O(1) au lieu de O(n)
 // ============================================================================
@@ -75,57 +78,11 @@ typedef struct {
     guint8 flags;  // Remplace les 3 gboolean par un bitmask
 } pid_change_t;
 
-// Cache des PIDs précédents pour détection différentielle
-static GHashTable* previous_pid_set = NULL;
-// incremental_update_enabled remplacé par IS_INCREMENTAL_UPDATE_ENABLED() macro
 
-// Initialisation du système de mise à jour incrémentale
-static void init_incremental_update(void) {
-    if (!previous_pid_set) {
-        previous_pid_set = g_hash_table_new(g_direct_hash, g_direct_equal);
-    }
-}
 
-// Mise à jour incrémentale simplifiée - 3 phases essentielles (optimisation 2-3% CPU)
+// Mise à jour de la table de mapping PID -> index (Traditionnelle et performante)
 HOT_FUNCTION
-void update_pid_index_map_incremental(void) {
-    if (!pid_to_index_map) return;
-    if (!IS_INCREMENTAL_UPDATE_ENABLED()) {
-        update_pid_index_map_traditional();
-        return;
-    }
-    
-    init_incremental_update();
-    
-    // Phase 1: Créer nouveau set
-    GHashTable* current_pid_set = g_hash_table_new(g_direct_hash, g_direct_equal);
-    for (gint i = 0; i < task_array->len; i++) {
-        struct task *task = &g_array_index(task_array, struct task, i);
-        g_hash_table_insert(current_pid_set, GINT_TO_POINTER(task->pid), GINT_TO_POINTER(i));
-    }
-    
-    // Phase 2: Mettre à jour hash table (fusion des phases 2-4)
-    g_hash_table_remove_all(pid_to_index_map);
-    GHashTableIter iter;
-    gpointer key, value;
-    g_hash_table_iter_init(&iter, current_pid_set);
-    while (g_hash_table_iter_next(&iter, &key, &value)) {
-        g_hash_table_insert(pid_to_index_map, key, value);
-    }
-    
-    // Phase 3: Mettre à jour cache previous
-    g_hash_table_remove_all(previous_pid_set);
-    g_hash_table_iter_init(&iter, current_pid_set);
-    while (g_hash_table_iter_next(&iter, &key, &value)) {
-        g_hash_table_insert(previous_pid_set, key, value);
-    }
-    
-    g_hash_table_destroy(current_pid_set);
-}
-
-// Version traditionnelle (fallback) - Rebuild complet O(n)
-HOT_FUNCTION
-void update_pid_index_map_traditional(void) {
+void update_pid_index_map(void) {
     if (!pid_to_index_map) return;
     
     // Vider la hash table
@@ -138,23 +95,21 @@ void update_pid_index_map_traditional(void) {
     }
 }
 
-// Fonction publique (utilise la version incrémentale par défaut)
-HOT_FUNCTION
-void update_pid_index_map(void) {
-    update_pid_index_map_incremental();
+void update_pid_index_map_incremental(void) {
+    update_pid_index_map();
+}
+
+void update_pid_index_map_traditional(void) {
+    update_pid_index_map();
 }
 
 // Fonction pour basculer entre mode incrémental et traditionnel
 void set_incremental_update_enabled(gboolean enabled) {
-    set_optimization_flag(OPTIMIZATION_FLAG_INCREMENTAL_UPDATE, enabled);
+    (void)enabled;
 }
 
 // Nettoyage des ressources incrémentales
 void cleanup_incremental_update(void) {
-    if (previous_pid_set) {
-        g_hash_table_destroy(previous_pid_set);
-        previous_pid_set = NULL;
-    }
 }
 
 // ============================================================================
@@ -448,13 +403,12 @@ void debug_cache_usage(void) {
         g_print("Cache UID: NON INITIALISÉ\n");
     }
     
-    // 6. Hash table incrémentale
-    if (previous_pid_set) {
-        guint previous_size = g_hash_table_size(previous_pid_set);
-        const gchar* mode = IS_INCREMENTAL_UPDATE_ENABLED() ? "INCRÉMENTAL" : "TRADITIONNEL";
-        g_print("Hash table PID: %u PIDs trackés (mode %s)\n", previous_size, mode);
+    // 6. Hash table PID -> index
+    if (pid_to_index_map) {
+        guint map_size = g_hash_table_size(pid_to_index_map);
+        g_print("Hash table PID: %u PIDs mappés\n", map_size);
     } else {
-        g_print("Hash table PID: Mode incrémental NON INITIALISÉ\n");
+        g_print("Hash table PID: NON INITIALISÉE\n");
     }
     
     g_print("======================================\n");
@@ -468,17 +422,6 @@ void debug_cache_usage(void) {
 GHashTable* uid_cache = NULL;
 time_t last_uid_cache_cleanup = 0;
 
-// Fonction de hachage pour uid_t
-static guint uid_hash_func(gconstpointer key) {
-    return g_direct_hash(GINT_TO_POINTER(*(const uid_t*)key));
-}
-
-// Fonction de comparaison pour uid_t
-static gboolean uid_equal_func(gconstpointer a, gconstpointer b) {
-    return *(const uid_t*)a == *(const uid_t*)b;
-}
-
-// Fonction de libération des entrées cache
 static void uid_cache_entry_free(gpointer data) {
     uid_cache_entry_t* entry = (uid_cache_entry_t*)data;
     if (entry) {
@@ -490,8 +433,8 @@ static void uid_cache_entry_free(gpointer data) {
 // Initialisation du cache UID (appelée une seule fois)
 void init_uid_cache(void) {
     if (!uid_cache) {
-        uid_cache = g_hash_table_new_full(uid_hash_func, uid_equal_func, 
-                                          g_free, uid_cache_entry_free);
+        uid_cache = g_hash_table_new_full(g_direct_hash, g_direct_equal, 
+                                          NULL, uid_cache_entry_free);
         last_uid_cache_cleanup = time(NULL);
     }
 }
@@ -536,28 +479,24 @@ const gchar* get_cached_username(uid_t uid) {
         cleanup_expired_uid_entries();
     }
     
-    // Recherche dans le cache O(1)
-    uid_t* uid_key = g_new(uid_t, 1);
-    *uid_key = uid;
-    
-    uid_cache_entry_t* entry = g_hash_table_lookup(uid_cache, uid_key);
+    // Recherche dans le cache O(1) sans allocation
+    uid_cache_entry_t* entry = g_hash_table_lookup(uid_cache, GUINT_TO_POINTER(uid));
     
     // Cache hit : vérifier validité
     if (entry && (entry->flags & UID_CACHE_FLAG_VALID) && 
         (current_time - entry->cache_time) < UID_CACHE_TTL_SECONDS) {
-        g_free(uid_key);
         return entry->username;  // Cache hit - retour immédiat O(1)
     }
     
     // Cache miss ou entrée expirée : résoudre via getpwuid()
     struct passwd* passwdp = getpwuid(uid);
     const gchar* username;
+    gchar uid_fallback[32];
     
     if (passwdp != NULL && passwdp->pw_name != NULL) {
         username = passwdp->pw_name;
     } else {
         // Fallback pour UIDs inconnus
-        static gchar uid_fallback[32];
         g_snprintf(uid_fallback, sizeof(uid_fallback), "%u", uid);
         username = uid_fallback;
     }
@@ -566,9 +505,8 @@ const gchar* get_cached_username(uid_t uid) {
     if (!entry) {
         entry = g_new0(uid_cache_entry_t, 1);
         entry->uid = uid;
-        g_hash_table_insert(uid_cache, uid_key, entry);
+        g_hash_table_insert(uid_cache, GUINT_TO_POINTER(uid), entry);
     } else {
-        g_free(uid_key);  // Clé déjà existante
         g_free(entry->username);  // Libérer ancien username
     }
     
@@ -703,66 +641,37 @@ int read_sys_file_int(const char* path) {
 // Suppression de la fonction consolidée complexe - remplacée par des fonctions simples
 
 gdouble get_cpu_speed(void) {
-    FILE *cpuinfo = fopen(PROC_CPUINFO, "r");
-    if (cpuinfo == NULL) {
-        perror("Error opening /proc/cpuinfo");
-        return 0.0;
-    }
-    char line[128];
-    gdouble cpu_speed_value = 0.0;
-    while (fgets(line, sizeof(line), cpuinfo)) {
-        if (strncmp(line, "cpu MHz", 7) == 0) {
-            char *start = strchr(line, ':');
-            if (start != NULL) {
-                sscanf(start + 1, "%lf", &cpu_speed_value);
-                break;
-            }
+    if (performance_data.cpu_core_speeds && performance_data.cpu_core_count > 0) {
+        double sum = 0.0;
+        for (int i = 0; i < performance_data.cpu_core_count; i++) {
+            sum += performance_data.cpu_core_speeds[i];
         }
+        return sum / performance_data.cpu_core_count;
     }
-    fclose(cpuinfo);
-    return cpu_speed_value / 1000.0;
+    return get_core_cpu_speed(0);
 }
 
 gdouble get_core_cpu_speed(int core_index) {
+    if (performance_data.cpu_core_speeds && core_index >= 0 && core_index < performance_data.cpu_core_count) {
+        return performance_data.cpu_core_speeds[core_index];
+    }
+    
     char path[128];
     snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", core_index);
-    FILE *fp = fopen(path, "r");
-    if (fp) {
-        double freq_khz = 0.0;
-        if (fscanf(fp, "%lf", &freq_khz) == 1) {
-            fclose(fp);
-            return freq_khz / 1000000.0;
-        }
-        fclose(fp);
-    }
-
-    FILE *cpuinfo = fopen("/proc/cpuinfo", "r");
-    if (cpuinfo == NULL) {
-        return 0.0;
-    }
-    char line[128];
-    gdouble cpu_speed_value = 0.0;
-    int current_core = -1;
-    while (fgets(line, sizeof(line), cpuinfo)) {
-        if (strncmp(line, "processor", 9) == 0) {
-            char *start = strchr(line, ':');
-            if (start != NULL) {
-                sscanf(start + 1, "%d", &current_core);
-            }
-        }
-        if (current_core == core_index && strncmp(line, "cpu MHz", 7) == 0) {
-            char *start = strchr(line, ':');
-            if (start != NULL) {
-                sscanf(start + 1, "%lf", &cpu_speed_value);
-                break;
+    int fd = open(path, O_RDONLY);
+    if (fd >= 0) {
+        char buf[32];
+        ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
+        close(fd);
+        if (bytes > 0) {
+            buf[bytes] = '\0';
+            long long freq_khz = fast_atoll(buf);
+            if (freq_khz > 0) {
+                return (double)freq_khz / 1000000.0;
             }
         }
     }
-    fclose(cpuinfo);
-    if (cpu_speed_value == 0.0 && core_index > 0) {
-        return get_core_cpu_speed(0);
-    }
-    return cpu_speed_value / 1000.0;
+    return get_cpu_speed();
 }
 
 #ifndef WITHOUT_GTK
@@ -825,71 +734,135 @@ GdkPixbuf* get_cpu_icon_pixbuf(gint cpu_level) {
 }
 #endif
 
-void get_swap_info(guint64 *swap_total, guint64 *swap_free) {
-    FILE *meminfo = fopen(PROC_MEMINFO, "r");
-    if (meminfo == NULL) {
-        perror("meminfo read error");
-        *swap_total = 0;
-        *swap_free = 0;
-        return;
-    }
-    char line[128];
-    *swap_total = 0;
-    *swap_free = 0;
-    while (fgets(line, sizeof(line), meminfo)) {
-        if (strncmp(line, "SwapTotal:", 10) == 0) {
-            sscanf(line + 10, "%llu", swap_total);
-        } else if (strncmp(line, "SwapFree:", 9) == 0) {
-            sscanf(line + 9, "%llu", swap_free);
+// Structure de cache pour /proc/meminfo (évite d'ouvrir le fichier plusieurs fois par refresh)
+typedef struct {
+    guint64 mem_free;      // kB
+    guint64 mem_cached;    // kB
+    guint64 mem_buffered;  // kB
+    guint64 swap_total;    // kB
+    guint64 swap_free;     // kB
+    guint64 commit_limit;  // kB
+    guint64 committed_as;  // kB
+    guint64 cached_ram;    // kB
+    guint64 slab;          // kB
+    guint64 sunreclaim;    // kB
+    struct timespec last_update;
+} meminfo_cache_t;
+
+static meminfo_cache_t meminfo_cache = {0};
+static gboolean meminfo_cache_initialized = FALSE;
+
+static void refresh_meminfo_cache_if_expired(void) {
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    
+    if (meminfo_cache_initialized) {
+        long long elapsed_ms = (now.tv_sec - meminfo_cache.last_update.tv_sec) * 1000 + 
+                               (now.tv_nsec - meminfo_cache.last_update.tv_nsec) / 1000000;
+        if (elapsed_ms < 250) {
+            return; // Cache valide
         }
     }
-    fclose(meminfo);
+    
+    int fd = open("/proc/meminfo", O_RDONLY);
+    if (fd < 0) return;
+    
+    static char buf[8192];
+    ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    
+    if (bytes <= 0) return;
+    buf[bytes] = '\0';
+    
+    meminfo_cache.mem_free = 0;
+    meminfo_cache.mem_cached = 0;
+    meminfo_cache.mem_buffered = 0;
+    meminfo_cache.swap_total = 0;
+    meminfo_cache.swap_free = 0;
+    meminfo_cache.commit_limit = 0;
+    meminfo_cache.committed_as = 0;
+    meminfo_cache.cached_ram = 0;
+    meminfo_cache.slab = 0;
+    meminfo_cache.sunreclaim = 0;
+    
+    char* line = buf;
+    while (line && *line) {
+        char* colon = strchr(line, ':');
+        if (colon) {
+            *colon = '\0';
+            char* val_ptr = colon + 1;
+            while (*val_ptr == ' ' || *val_ptr == '\t') val_ptr++;
+            guint64 val = fast_atoll(val_ptr); // valeur brute en kB
+            
+            if (strcmp(line, "MemFree") == 0) meminfo_cache.mem_free = val;
+            else if (strcmp(line, "Cached") == 0) {
+                meminfo_cache.mem_cached += val;
+                meminfo_cache.cached_ram = val;
+            }
+            else if (strcmp(line, "SReclaimable") == 0) meminfo_cache.mem_cached += val;
+            else if (strcmp(line, "Buffers") == 0) meminfo_cache.mem_buffered = val;
+            else if (strcmp(line, "SwapTotal") == 0) meminfo_cache.swap_total = val;
+            else if (strcmp(line, "SwapFree") == 0) meminfo_cache.swap_free = val;
+            else if (strcmp(line, "CommitLimit") == 0) meminfo_cache.commit_limit = val;
+            else if (strcmp(line, "Committed_AS") == 0) meminfo_cache.committed_as = val;
+            else if (strcmp(line, "Slab") == 0) meminfo_cache.slab = val;
+            else if (strcmp(line, "SUnreclaim") == 0) meminfo_cache.sunreclaim = val;
+            
+            *colon = ':'; // restaurer
+        }
+        line = strchr(line, '\n');
+        if (line) line++;
+    }
+    
+    meminfo_cache.last_update = now;
+    meminfo_cache_initialized = TRUE;
+}
+
+guint64 get_cached_mem_free(void) {
+    refresh_meminfo_cache_if_expired();
+    return meminfo_cache.mem_free;
+}
+
+guint64 get_cached_mem_cached(void) {
+    refresh_meminfo_cache_if_expired();
+    return meminfo_cache.mem_cached;
+}
+
+guint64 get_cached_mem_buffered(void) {
+    refresh_meminfo_cache_if_expired();
+    return meminfo_cache.mem_buffered;
+}
+
+guint64 get_cached_swap_total_val(void) {
+    refresh_meminfo_cache_if_expired();
+    return meminfo_cache.swap_total;
+}
+
+guint64 get_cached_swap_free_val(void) {
+    refresh_meminfo_cache_if_expired();
+    return meminfo_cache.swap_free;
+}
+
+void get_swap_info(guint64 *swap_total, guint64 *swap_free) {
+    refresh_meminfo_cache_if_expired();
+    *swap_total = meminfo_cache.swap_total;
+    *swap_free = meminfo_cache.swap_free;
 }
 
 // ============================================================================
 // OPTIMISATION HASH - Détection rapide des changements processus
-// ============================================================================
-// Hash ultra-rapide des champs critiques pour éviter 8+ comparaisons
-// Gain estimé: 15-20% CPU dans refresh_task_list()
-// Note: Déclaration dans functions.h pour utilisation dans xfce-taskmanager-linux.c
-inline uint64_t compute_task_hash_quick(const struct task *t) {
-    // Combiner les champs critiques avec XOR + rotations (branch-free, ~10 cycles CPU)
-    uint64_t hash = 0;
-    
-    // Champs 32-bit
-    hash ^= (uint64_t)t->ppid;
-    hash = (hash << 13) | (hash >> 51);  // Rotation 13 bits
-    
-    hash ^= (uint64_t)t->state_prio_packed;
-    hash = (hash << 7) | (hash >> 57);
-    
-    // Champs 64-bit (mémoire)
-    hash ^= t->size;
-    hash = (hash << 11) | (hash >> 53);
-    
-    hash ^= t->rss;
-    hash = (hash << 17) | (hash >> 47);
-    
-    hash ^= t->pss;
-    hash = (hash << 19) | (hash >> 45);
-    
-    hash ^= t->shr;
-    hash = (hash << 13) | (hash >> 51);
-    
-    // Champs float convertis en bits
-    union { gfloat f; uint32_t u; } cpu_conv, gpu_conv;
-    cpu_conv.f = t->time_percentage;
-    gpu_conv.f = t->gpu_usage;
-    
-    hash ^= ((uint64_t)cpu_conv.u << 32) | gpu_conv.u;
-    hash = (hash << 23) | (hash >> 41);
-    
-    // Hash rapide du nom simple (premiers 8 bytes seulement pour performance)
-    uint64_t simple_name_val = 0;
-    memcpy(&simple_name_val, t->simple_name, sizeof(uint64_t));
-    hash ^= simple_name_val;
-    
-    return hash;
+// Comparaison rapide des champs critiques pour détecter les changements (O-11)
+static inline gboolean tasks_are_equal(const struct task *a, const struct task *b, gboolean should_load_pss) {
+    if (a->ppid != b->ppid) return FALSE;
+    if (a->state_prio_packed != b->state_prio_packed) return FALSE;
+    if (a->flags_nice_packed != b->flags_nice_packed) return FALSE;
+    if (a->size != b->size) return FALSE;
+    if (a->rss != b->rss) return FALSE;
+    if (a->shr != b->shr) return FALSE;
+    if (should_load_pss && (a->pss != b->pss)) return FALSE;
+    if (a->time_percentage != b->time_percentage) return FALSE;
+    if (a->gpu_usage != b->gpu_usage) return FALSE;
+    return strcmp(a->name, b->name) == 0;
 }
 
 #ifndef WITHOUT_GTK
@@ -1012,13 +985,14 @@ gboolean refresh_task_list(void) {
         
         // THREAD PSS ASYNCHRONE : Lancer la collection si nécessaire
         if (should_load_pss && !is_pss_thread_busy()) {
-            // Extraire les PIDs à traiter
-            pid_t *pids_for_pss = g_malloc(new_task_list->len * sizeof(pid_t));
-            for (j = 0; j < new_task_list->len; j++) {
+            // Extraire les PIDs à traiter (allocation statique sur la pile pour éviter le heap overhead)
+            pid_t pids_for_pss[TASK_POOL_SIZE];
+            guint pss_count = new_task_list->len;
+            if (pss_count > TASK_POOL_SIZE) pss_count = TASK_POOL_SIZE;
+            for (j = 0; j < pss_count; j++) {
                 pids_for_pss[j] = g_array_index(new_task_list, struct task, j).pid;
             }
-            start_pss_collection(pids_for_pss, new_task_list->len);
-            g_free(pids_for_pss);
+            start_pss_collection(pids_for_pss, pss_count);
         }
         
         // Calculer une seule fois la limite théorique pour tous les processus
@@ -1043,48 +1017,30 @@ gboolean refresh_task_list(void) {
                 tmp->time_percentage = 0.0f;  // Ignorer cette mesure
             } else {
                 // OPTIMISATION : Arithmétique entière + multiplication au lieu de division flottante
-                guint time_percentage_int = (delta_time * 1000) / cached_divisor;
+                guint time_percentage_int = ((guint64)delta_time * 1000) / cached_divisor;
                 tmp->time_percentage = (gfloat)time_percentage_int * inv_1000;
             }
             
-            // OPTIMISATION HASH: Éviter 8+ comparaisons avec hash rapide (gain 15-20% CPU)
-            // PRÉ-CALCUL HASH: Utiliser cache au lieu de recalculer (gain additionnel 2-2.5% CPU)
-            new_tmp->time_percentage = tmp->time_percentage;  // Synchroniser d'abord
-            uint64_t old_hash = tmp->cached_hash;  // ← Lecture cache au lieu de calcul
-            uint64_t new_hash = compute_task_hash_quick(new_tmp);
+            // Synchroniser le pourcentage CPU sur new_tmp avant comparaison
+            new_tmp->time_percentage = tmp->time_percentage;
             
-            // Comparaison unique au lieu de 8+ comparaisons
-            if (UNLIKELY(old_hash != new_hash)) {
-                // Hash différent → au moins 1 champ a changé
-                // Faire les comparaisons détaillées seulement maintenant (cas rare ~5-10%)
-                // NOTE: Comparer PSS seulement si chargé ce cycle (évite faux positifs avec PSS adaptatif)
-                gboolean pss_changed = should_load_pss ? (tmp->pss != new_tmp->pss) : FALSE;
-                
-                if (tmp->ppid != new_tmp->ppid || TASK_GET_STATE_CHAR(tmp) != TASK_GET_STATE_CHAR(new_tmp) ||
-                    tmp->size != new_tmp->size || tmp->rss != new_tmp->rss || tmp->shr != new_tmp->shr || pss_changed ||
-                    tmp->time_percentage != new_tmp->time_percentage || tmp->gpu_usage != new_tmp->gpu_usage ||
-                    TASK_GET_PRIO(tmp) != TASK_GET_PRIO(new_tmp) || strncmp(tmp->name, new_tmp->name, sizeof(tmp->name)) != 0) {
-                    // Mise à jour des champs
-                    tmp->ppid = new_tmp->ppid;
-                    TASK_SET_STATE_CHAR(tmp, TASK_GET_STATE_CHAR(new_tmp));
-                    tmp->size = new_tmp->size;
-                    tmp->rss = new_tmp->rss;
-                    tmp->shr = new_tmp->shr;
-                    // Récupérer PSS depuis le thread asynchrone si disponible
-                    guint64 pss_from_thread = 0;
-                    if (get_pss_result(tmp->pid, &pss_from_thread)) {
-                        tmp->pss = pss_from_thread;
-                    }
-                    tmp->gpu_usage = new_tmp->gpu_usage;
-                    TASK_SET_PRIO(tmp, TASK_GET_PRIO(new_tmp));
-                    g_strlcpy(tmp->name, new_tmp->name, sizeof(tmp->name));
-                    g_strlcpy(tmp->simple_name, new_tmp->simple_name, sizeof(tmp->simple_name));
-                    
-                    // IMPORTANT: Invalider cache hash après mise à jour
-                    tmp->cached_hash = compute_task_hash_quick(tmp);
-                    
-                    // Note: Batch update sera fait à la fin de refresh_task_list()
+            // Comparaison directe optimisée avec court-circuit (O-11)
+            if (UNLIKELY(!tasks_are_equal(tmp, new_tmp, should_load_pss))) {
+                // Mise à jour des champs
+                tmp->ppid = new_tmp->ppid;
+                TASK_SET_STATE_CHAR(tmp, TASK_GET_STATE_CHAR(new_tmp));
+                tmp->size = new_tmp->size;
+                tmp->rss = new_tmp->rss;
+                tmp->shr = new_tmp->shr;
+                // Récupérer PSS depuis le thread asynchrone si disponible
+                guint64 pss_from_thread = 0;
+                if (get_pss_result(tmp->pid, &pss_from_thread)) {
+                    tmp->pss = pss_from_thread;
                 }
+                tmp->gpu_usage = new_tmp->gpu_usage;
+                TASK_SET_PRIO(tmp, TASK_GET_PRIO(new_tmp));
+                g_strlcpy(tmp->name, new_tmp->name, sizeof(tmp->name));
+                g_strlcpy(tmp->simple_name, new_tmp->simple_name, sizeof(tmp->simple_name));
             }
             // Cas commun (90-95%): hash identique → aucun changement, skip comparaisons
             
@@ -1114,8 +1070,6 @@ gboolean refresh_task_list(void) {
                 if (((app_flags & APP_FLAG_SHOW_USER_TASKS) && new_task->uid == own_uid) ||
                     ((app_flags & APP_FLAG_SHOW_ROOT_TASKS) && new_task->uid == 0) ||
                     ((app_flags & APP_FLAG_SHOW_OTHER_TASKS) && new_task->uid != own_uid && new_task->uid != 0)) {
-                    // Initialiser cache hash pour nouveau processus
-                    new_task->cached_hash = compute_task_hash_quick(new_task);
                     g_array_append_val(task_array, *new_task);
                     add_new_list_item(tasks);
                     tasks++;
@@ -1137,8 +1091,6 @@ gboolean refresh_task_list(void) {
             struct task *new_tmp = &g_array_index(new_task_list, struct task, i);
             if (!(TASK_GET_FLAGS(new_tmp) & TASK_FLAG_CHECKED)) {
                 struct task *new_task = new_tmp;
-                // Initialiser cache hash pour nouveau processus
-                new_task->cached_hash = compute_task_hash_quick(new_task);
                 g_array_append_val(task_array, *new_task);
                 tasks++;
             }
@@ -1220,7 +1172,7 @@ gboolean refresh_task_list(void) {
     }
     char memory_tooltip[128];
     format_memory_gb(memory_tooltip, sizeof(memory_tooltip), memory_used);
-    sprintf(tooltip, "Memory: %s of %.1f GB used", memory_tooltip, (double)(sys_stat->mem_total) / (1024.0 * 1024.0));
+    snprintf(tooltip, sizeof(tooltip), "Memory: %s of %.1f GB used", memory_tooltip, (double)(sys_stat->mem_total) / (1024.0 * 1024.0));
     if (strcmp(tooltip, gtk_progress_bar_get_text(GTK_PROGRESS_BAR(mem_usage_progress_bar)))) {
         gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(mem_usage_progress_bar), (gdouble)memory_used / sys_stat->mem_total);
         gtk_progress_bar_set_text(GTK_PROGRESS_BAR(mem_usage_progress_bar), tooltip);
@@ -1247,7 +1199,7 @@ gboolean refresh_task_list(void) {
         char swap_used_str[64], swap_total_str[64];
         format_memory_gb(swap_used_str, sizeof(swap_used_str), swap_used);
         format_memory_gb(swap_total_str, sizeof(swap_total_str), swap_total);
-        sprintf(swap_tooltip, "Swap: %s of %s used", swap_used_str, swap_total_str);
+        snprintf(swap_tooltip, sizeof(swap_tooltip), "Swap: %s of %s used", swap_used_str, swap_total_str);
         if (strcmp(swap_tooltip, gtk_progress_bar_get_text(GTK_PROGRESS_BAR(swap_usage_progress_bar)))) {
             gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(swap_usage_progress_bar), (gdouble)swap_used / swap_total);
             gtk_progress_bar_set_text(GTK_PROGRESS_BAR(swap_usage_progress_bar), swap_tooltip);
@@ -1337,7 +1289,7 @@ gboolean refresh_task_list(void) {
     if (last_cpu_usage != cpu_usage || page_changed) {
         char cpu_speed_str[64];
         format_speed_ghz(cpu_speed_str, sizeof(cpu_speed_str), cpu_speed_value * 1000.0);
-        sprintf(cached_cpu_tooltip, "CPU usage: %0.0f %% at %s", cpu_usage * 100.0, cpu_speed_str);
+        snprintf(cached_cpu_tooltip, sizeof(cached_cpu_tooltip), "CPU usage: %0.0f %% at %s", cpu_usage * 100.0, cpu_speed_str);
         gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(cpu_usage_progress_bar), cpu_usage);
         gtk_progress_bar_set_text(GTK_PROGRESS_BAR(cpu_usage_progress_bar), cached_cpu_tooltip);
         last_cpu_usage = cpu_usage;
@@ -1407,7 +1359,7 @@ gboolean refresh_pss_only(void) {
         
         // Lire PSS depuis /proc/pid/smaps_rollup
         gchar line[256];
-        sprintf(line, "/proc/%d/smaps_rollup", (int)pid);
+        snprintf(line, sizeof(line), "/proc/%d/smaps_rollup", (int)pid);
         int fd = open(line, O_RDONLY);
         if (fd != -1) {
             char buffer[1024];
@@ -1551,6 +1503,7 @@ void cleanup_system_status() {
         g_free(sys_stat);
         sys_stat = NULL;
     }
+    meminfo_cache_initialized = FALSE;
 }
 
 
@@ -1559,9 +1512,9 @@ void cleanup_system_status() {
 
 gdouble get_cpu_usage(system_status *sys_stat) {
     gdouble cpu_usage = 0.0;
-    guint current_jiffies;
-    guint current_used;
-    guint delta_jiffies;
+    guint64 current_jiffies;
+    guint64 current_used;
+    guint64 delta_jiffies;
     
     gboolean proc_success = get_cpu_usage_from_proc(sys_stat);
 #ifdef CONSOLE_DEBUG
@@ -1579,17 +1532,21 @@ gdouble get_cpu_usage(system_status *sys_stat) {
     } else {
 #ifdef CONSOLE_DEBUG
         printf("[DEBUG] Mode principal: cpu_old_jiffies=%u, cpu_old_used=%u\n", 
-               sys_stat->cpu_old_jiffies, sys_stat->cpu_old_used);
+               (guint)sys_stat->cpu_old_jiffies, (guint)sys_stat->cpu_old_used);
         fflush(stdout);
 #endif
         if (sys_stat->cpu_old_jiffies > 0) {
             current_used = sys_stat->cpu_user + sys_stat->cpu_nice + sys_stat->cpu_system;
             current_jiffies = current_used + sys_stat->cpu_idle;
-            delta_jiffies = current_jiffies - (gdouble)sys_stat->cpu_old_jiffies;
-            cpu_usage = (gdouble)(current_used - sys_stat->cpu_old_used) / (gdouble)delta_jiffies;
+            delta_jiffies = current_jiffies - sys_stat->cpu_old_jiffies;
+            if (delta_jiffies > 0) {
+                cpu_usage = (gdouble)(current_used - sys_stat->cpu_old_used) / (gdouble)delta_jiffies;
+            } else {
+                cpu_usage = 0.0;
+            }
 #ifdef CONSOLE_DEBUG
             printf("[DEBUG] Calcul delta: current_used=%u, current_jiffies=%u, delta_jiffies=%u, cpu_usage=%.3f\n", 
-                   current_used, current_jiffies, delta_jiffies, cpu_usage);
+                   (guint)current_used, (guint)current_jiffies, (guint)delta_jiffies, cpu_usage);
             fflush(stdout);
 #endif
         } else {
@@ -1647,6 +1604,10 @@ void init_cpu_core_sampling(void) {
 }
 OPTIMIZE_SIZE_END
 
+static guint64 *cpu_core_prev_idle = NULL;
+static guint64 *cpu_core_prev_total = NULL;
+static gboolean cpu_core_first_call = TRUE;
+
 // Nettoyer les tableaux de sampling par cœur
 void cleanup_cpu_core_sampling(void) {
     if (performance_data.cpu_core_samples) {
@@ -1662,25 +1623,30 @@ void cleanup_cpu_core_sampling(void) {
         g_free(performance_data.cpu_core_speeds);
         performance_data.cpu_core_speeds = NULL;
     }
+    if (cpu_core_prev_idle) {
+        g_free(cpu_core_prev_idle);
+        cpu_core_prev_idle = NULL;
+    }
+    if (cpu_core_prev_total) {
+        g_free(cpu_core_prev_total);
+        cpu_core_prev_total = NULL;
+    }
+    cpu_core_first_call = TRUE;
 }
 
 // Récupérer l'utilisation de chaque cœur depuis /proc/stat
 HOT_FUNCTION
 void get_per_core_cpu_usage(gint *core_usages) {
-    static guint64 *prev_idle = NULL;
-    static guint64 *prev_total = NULL;
-    static gboolean first_call = TRUE;
-    
     // Initialiser les tableaux statiques lors du premier appel
-    if (first_call) {
-        prev_idle = g_malloc(performance_data.cpu_core_count * sizeof(guint64));
-        prev_total = g_malloc(performance_data.cpu_core_count * sizeof(guint64));
+    if (cpu_core_first_call) {
+        cpu_core_prev_idle = g_malloc(performance_data.cpu_core_count * sizeof(guint64));
+        cpu_core_prev_total = g_malloc(performance_data.cpu_core_count * sizeof(guint64));
         for (int i = 0; i < performance_data.cpu_core_count; i++) {
-            prev_idle[i] = 0;
-            prev_total[i] = 0;
+            cpu_core_prev_idle[i] = 0;
+            cpu_core_prev_total[i] = 0;
             core_usages[i] = 0; // Première mesure = 0
         }
-        first_call = FALSE;
+        cpu_core_first_call = FALSE;
     }
     
     FILE *f = fopen(PROC_STAT, "r");
@@ -1705,9 +1671,9 @@ void get_per_core_cpu_usage(gint *core_usages) {
                 guint64 idle_time = idle64 + iowait64;
                 guint64 total_time = user64 + nice64 + system64 + idle64 + iowait64 + irq64 + softirq64 + steal64;
                 
-                if (prev_total[core_index] > 0) {
-                    guint64 total_diff = total_time - prev_total[core_index];
-                    guint64 idle_diff = idle_time - prev_idle[core_index];
+                if (cpu_core_prev_total[core_index] > 0) {
+                    guint64 total_diff = total_time - cpu_core_prev_total[core_index];
+                    guint64 idle_diff = idle_time - cpu_core_prev_idle[core_index];
                     
                     if (total_diff > 0) {
                         core_usages[core_index] = (gint)(((total_diff - idle_diff) * 100) / total_diff);
@@ -1718,13 +1684,87 @@ void get_per_core_cpu_usage(gint *core_usages) {
                     core_usages[core_index] = 0;
                 }
                 
-                prev_idle[core_index] = idle_time;
-                prev_total[core_index] = total_time;
+                cpu_core_prev_idle[core_index] = idle_time;
+                cpu_core_prev_total[core_index] = total_time;
                 core_index++;
             }
         }
     }
     fclose(f);
+}
+
+static void update_cpu_core_speeds(void) {
+    if (!performance_data.cpu_core_speeds) return;
+    
+    static gboolean sysfs_supported = TRUE;
+    
+    if (sysfs_supported) {
+        gboolean success = FALSE;
+        for (int i = 0; i < performance_data.cpu_core_count; i++) {
+            char path[128];
+            snprintf(path, sizeof(path), "/sys/devices/system/cpu/cpu%d/cpufreq/scaling_cur_freq", i);
+            int fd = open(path, O_RDONLY);
+            if (fd >= 0) {
+                char buf[32];
+                ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
+                close(fd);
+                if (bytes > 0) {
+                    buf[bytes] = '\0';
+                    long long freq_khz = fast_atoll(buf);
+                    if (freq_khz > 0) {
+                        performance_data.cpu_core_speeds[i] = (double)freq_khz / 1000000.0;
+                        success = TRUE;
+                        continue;
+                    }
+                }
+            }
+            
+            // Si le premier cœur échoue, on suppose que sysfs n'est pas disponible pour cpufreq
+            if (i == 0) {
+                sysfs_supported = FALSE;
+                break;
+            }
+            // Fallback pour un cœur spécifique si sysfs échoue mais était ok sur cpu0
+            performance_data.cpu_core_speeds[i] = performance_data.cpu_core_speeds[0];
+        }
+        if (success) return; // Tout est lu par sysfs !
+    }
+    
+    // Si sysfs n'est pas supporté, on lit /proc/cpuinfo une seule fois pour tous les cœurs !
+    int fd = open("/proc/cpuinfo", O_RDONLY);
+    if (fd >= 0) {
+        static char buf[65536]; // 64KB statique pour cpuinfo
+        ssize_t bytes = read(fd, buf, sizeof(buf) - 1);
+        close(fd);
+        if (bytes > 0) {
+            buf[bytes] = '\0';
+            char* line = buf;
+            int current_core = -1;
+            while (line && *line) {
+                if (strncmp(line, "processor", 9) == 0) {
+                    char *colon = strchr(line, ':');
+                    if (colon) {
+                        current_core = fast_atoi(colon + 1);
+                    }
+                } else if (strncmp(line, "cpu MHz", 7) == 0) {
+                    char *colon = strchr(line, ':');
+                    if (colon && current_core >= 0 && current_core < performance_data.cpu_core_count) {
+                        double mhz = strtod(colon + 1, NULL);
+                        performance_data.cpu_core_speeds[current_core] = mhz / 1000.0;
+                    }
+                }
+                line = strchr(line, '\n');
+                if (line) line++;
+            }
+            return;
+        }
+    }
+    
+    // Fallback ultime : vitesse globale
+    double global_speed = get_cpu_speed();
+    for (int i = 0; i < performance_data.cpu_core_count; i++) {
+        performance_data.cpu_core_speeds[i] = global_speed;
+    }
 }
 
 HOT_FUNCTION
@@ -1749,23 +1789,17 @@ void update_performance_samples(gdouble cpu_usage, gdouble ram_usage, gdouble sw
     
     // Récupérer et ajouter les données par cœur (optimisé int16_t)
     if (performance_data.cpu_core_samples) {
-        gint *core_usages = g_malloc(performance_data.cpu_core_count * sizeof(gint));
+        gint core_usages[MAX_CPU_CORES];
         get_per_core_cpu_usage(core_usages);
         
         for (int i = 0; i < performance_data.cpu_core_count; i++) {
             // Conversion sécurisée int32_t → int16_t (0-100% toujours < 32767)
             performance_data.cpu_core_samples[i][performance_data.current_index] = (gint16)core_usages[i];
         }
-        
-        g_free(core_usages);
     }
     
     // Mettre à jour les vitesses individuelles des cœurs logiques
-    if (performance_data.cpu_core_speeds) {
-        for (int i = 0; i < performance_data.cpu_core_count; i++) {
-            performance_data.cpu_core_speeds[i] = get_core_cpu_speed(i);
-        }
-    }
+    update_cpu_core_speeds();
     
     // Échantillonner les statistiques GPU système
     sample_gpu_system_stats();
@@ -1821,14 +1855,6 @@ void sample_gpu_system_stats(void) {
 
 // Structures et fonctions pour les statistiques système
 #define BUF_SIZE 16384
-
-struct linux_dirent64 {
-    ino64_t        d_ino;
-    off64_t        d_off;
-    unsigned short d_reclen;
-    unsigned char  d_type;
-    char           d_name[];
-};
 
 static inline int is_numeric_name(const char *s) {
     if (!s || !isdigit((unsigned char)*s)) return 0;
@@ -2212,39 +2238,15 @@ double get_installed_ram_gib(void) {
     return total_bytes / 1024.0 / 1024.0 / 1024.0;
 }
 
-// Fonctions pour les informations RAM avancées (adaptées de ram.c)
-// OPTIMISATION: open/read/close direct au lieu de fopen/fgets/fclose (5× plus rapide)
+// OPTIMISATION CACHE: Utilise meminfo_cache pour éviter de lire le fichier à chaque appel (O-01)
 long long get_meminfo_value(const char *key) {
-    int fd = open(PROC_MEMINFO, O_RDONLY);
-    if (fd < 0) {
-        return -1;
-    }
-
-    static char buffer[8192];  // Buffer statique réutilisable pour /proc/meminfo
-    ssize_t bytes = read(fd, buffer, sizeof(buffer) - 1);
-    close(fd);
-    
-    if (bytes <= 0) return -1;
-    buffer[bytes] = '\0';
-
-    long long value = -1;
-    size_t keylen = strlen(key);
-    char* line = buffer;
-
-    while (line && *line) {
-        if (strncmp(line, key, keylen) == 0) {
-            // Parser directement avec fast_atoll (plus rapide que sscanf)
-            char* colon = strchr(line, ':');
-            if (colon) {
-                value = fast_atoll(colon + 1);
-                value *= 1024; // kB → bytes
-            }
-            break;
-        }
-        line = strchr(line, '\n');
-        if (line) line++;
-    }
-    return value;
+    refresh_meminfo_cache_if_expired();
+    if (strcmp(key, "CommitLimit") == 0) return meminfo_cache.commit_limit * 1024; // KB -> bytes
+    if (strcmp(key, "Committed_AS") == 0) return meminfo_cache.committed_as * 1024;
+    if (strcmp(key, "Cached") == 0) return meminfo_cache.cached_ram * 1024;
+    if (strcmp(key, "Slab") == 0) return meminfo_cache.slab * 1024;
+    if (strcmp(key, "SUnreclaim") == 0) return meminfo_cache.sunreclaim * 1024;
+    return -1;
 }
 
 // Initialiser les valeurs de commit (à appeler une seule fois au démarrage)
@@ -2298,7 +2300,7 @@ void get_root_device(char *device) {
     char* line = buffer;
     while (line && *line) {
         char mount_dev[DEVICE_MAX], mount_point[DEVICE_MAX];
-        if (sscanf(line, "%s %s", mount_dev, mount_point) == 2) {
+        if (sscanf(line, "%63s %63s", mount_dev, mount_point) == 2) {
             if (strcmp(mount_point, "/") == 0) {
                 if (strncmp(mount_dev, "/dev/", 5) == 0) {
                     strncpy(device, mount_dev + 5, DEVICE_MAX - 1);
@@ -2746,7 +2748,6 @@ gboolean check_swap_on_disk(const char *device) {
 OPTIMIZE_SIZE_BEGIN
 INIT_FUNCTION
 void init_disk_system_info(void) {
-    char root_device[DEVICE_MAX];
     get_root_device(root_device);
     
     if (strlen(root_device) > 0) {
@@ -2768,6 +2769,13 @@ void init_disk_system_info(void) {
     }
 }
 OPTIMIZE_SIZE_END
+
+void cleanup_disk_system_info(void) {
+    if (system_disk_model) {
+        g_free(system_disk_model);
+        system_disk_model = NULL;
+    }
+}
 
 // ============= Fonctions pour les utilisateurs connectés =============
 
@@ -2816,14 +2824,45 @@ user_session_t **get_logged_in_users_with_sessions(void) {
 
         // Toujours ajouter chaque session (pas de déduplication ici)
         user_session_t **tmp = realloc(users, (count + 2) * sizeof(user_session_t *));
-        if (!tmp) break;
+        if (!tmp) {
+            for (size_t k = 0; k < count; k++) {
+                free(users[k]->username);
+                free(users[k]->session_id);
+                free(users[k]);
+            }
+            free(users);
+            users = NULL;
+            break;
+        }
         users = tmp;
         
         users[count] = malloc(sizeof(user_session_t));
-        if (!users[count]) break;
+        if (!users[count]) {
+            for (size_t k = 0; k < count; k++) {
+                free(users[k]->username);
+                free(users[k]->session_id);
+                free(users[k]);
+            }
+            free(users);
+            users = NULL;
+            break;
+        }
         
         users[count]->username = strdup(user);
         users[count]->session_id = strdup(session_id);
+        if (!users[count]->username || !users[count]->session_id) {
+            free(users[count]->username);
+            free(users[count]->session_id);
+            free(users[count]);
+            for (size_t k = 0; k < count; k++) {
+                free(users[k]->username);
+                free(users[k]->session_id);
+                free(users[k]);
+            }
+            free(users);
+            users = NULL;
+            break;
+        }
         users[count + 1] = NULL;
         count++;
 
@@ -2838,6 +2877,22 @@ finish:
     return users;
 }
 
+static void free_user_with_sessions_list(user_with_sessions_t **users, size_t count) {
+    if (!users) return;
+    for (size_t i = 0; i < count; i++) {
+        if (users[i]) {
+            free(users[i]->username);
+            if (users[i]->session_ids) {
+                for (size_t j = 0; j < users[i]->session_count; j++) {
+                    free(users[i]->session_ids[j]);
+                }
+                free(users[i]->session_ids);
+            }
+            free(users[i]);
+        }
+    }
+    free(users);
+}
 
 user_with_sessions_t **get_logged_in_users_with_session_info(void) {
     sd_bus *bus = NULL;
@@ -2887,15 +2942,40 @@ user_with_sessions_t **get_logged_in_users_with_session_info(void) {
         if (!existing_user) {
             // Nouvel utilisateur
             user_with_sessions_t **tmp = realloc(users, (count + 2) * sizeof(user_with_sessions_t *));
-            if (!tmp) break;
+            if (!tmp) {
+                free_user_with_sessions_list(users, count);
+                users = NULL;
+                break;
+            }
             users = tmp;
             
             users[count] = malloc(sizeof(user_with_sessions_t));
-            if (!users[count]) break;
+            if (!users[count]) {
+                free_user_with_sessions_list(users, count);
+                users = NULL;
+                break;
+            }
             
             users[count]->username = strdup(user);
             users[count]->session_ids = malloc(sizeof(char*));
+            if (!users[count]->username || !users[count]->session_ids) {
+                free(users[count]->username);
+                free(users[count]->session_ids);
+                free(users[count]);
+                free_user_with_sessions_list(users, count);
+                users = NULL;
+                break;
+            }
             users[count]->session_ids[0] = strdup(session_id);
+            if (!users[count]->session_ids[0]) {
+                free(users[count]->username);
+                free(users[count]->session_ids[0]);
+                free(users[count]->session_ids);
+                free(users[count]);
+                free_user_with_sessions_list(users, count);
+                users = NULL;
+                break;
+            }
             users[count]->session_count = 1;
             users[count + 1] = NULL;
             count++;
@@ -2903,11 +2983,19 @@ user_with_sessions_t **get_logged_in_users_with_session_info(void) {
             // Ajouter la session à l'utilisateur existant
             char **tmp_sessions = realloc(existing_user->session_ids, 
                                         (existing_user->session_count + 1) * sizeof(char*));
-            if (tmp_sessions) {
-                existing_user->session_ids = tmp_sessions;
-                existing_user->session_ids[existing_user->session_count] = strdup(session_id);
-                existing_user->session_count++;
+            if (!tmp_sessions) {
+                free_user_with_sessions_list(users, count);
+                users = NULL;
+                break;
             }
+            existing_user->session_ids = tmp_sessions;
+            existing_user->session_ids[existing_user->session_count] = strdup(session_id);
+            if (!existing_user->session_ids[existing_user->session_count]) {
+                free_user_with_sessions_list(users, count);
+                users = NULL;
+                break;
+            }
+            existing_user->session_count++;
         }
 
         sd_bus_message_exit_container(msg); // sortir STRUCT
@@ -2968,9 +3056,24 @@ char **get_logged_in_users(void) {
 
         if (!already) {
             char **tmp = realloc(users, (count + 2) * sizeof(char *));
-            if (!tmp) break;
+            if (!tmp) {
+                for (size_t k = 0; k < count; k++) {
+                    free(users[k]);
+                }
+                free(users);
+                users = NULL;
+                break;
+            }
             users = tmp;
             users[count] = strdup(user);
+            if (!users[count]) {
+                for (size_t k = 0; k < count; k++) {
+                    free(users[k]);
+                }
+                free(users);
+                users = NULL;
+                break;
+            }
             users[count + 1] = NULL;
             count++;
         }

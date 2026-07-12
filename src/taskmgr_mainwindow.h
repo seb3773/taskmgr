@@ -29,6 +29,7 @@
 #include "services_tab.h"
 #include "users_tab.h"
 #include "taskmgr_system_tray.h"
+#include "preferences_dialog.h"
 
 extern "C" {
 extern gint saved_win_x;
@@ -74,7 +75,7 @@ protected:
         
         // Background & border
         p.setPen(TQColor(218, 220, 224)); // Light grey border
-        p.setBrush(TQt::white);
+        p.setBrush(GaugeColors::bg);
         p.drawRect(0, 0, width(), height());
 
         // Progress chunk
@@ -125,6 +126,11 @@ public:
     void updateValues(double cpu_pct, double cpu_ghz,
                       double mem_used_kb, double mem_total_gb,
                       double swap_used_kb, double swap_total_gb) {
+        // Load latest colors
+        m_cpuBar->setColor(GaugeColors::cpu);
+        m_ramBar->setColor(GaugeColors::ram);
+        m_swapBar->setColor(GaugeColors::swap);
+
         // CPU
         TQString cpuText = TQString("CPU usage: %1 % at %2 GHz")
             .arg(cpu_pct, 0, 'f', 0)
@@ -292,6 +298,7 @@ private slots:
     void onTabChanged(TQWidget* widget);
     void onMenuQuit();
     void onMenuRunNewTask();
+    void onMenuPointAndKill();
     void onMenuRootMode();
     void onMenuSettings();
     void onMenuAbout();

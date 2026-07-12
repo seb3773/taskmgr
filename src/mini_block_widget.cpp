@@ -1,6 +1,7 @@
 #include "mini_block_widget.h"
 #include "performance_tab.h"
 #include "backend_bridge.h"
+#include "preferences_dialog.h"
 #include <ntqpainter.h>
 #include <ntqstyle.h>
 
@@ -31,34 +32,7 @@ MiniBlockWidget::MiniBlockWidget(Type type, int deviceIndex, TQWidget* parent)
     setMinimumSize(210, 70);
     setMaximumSize(2000, 70);
 
-    // Assign theme colors matching Windows 10 Task Manager
-    switch (m_type) {
-        case TypeCPU:
-            m_themeColor = TQColor(90, 122, 138);     // #5A7A8A
-            m_themeFillColor = TQColor(229, 235, 243); // #E5EBF3
-            m_frameColor = TQColor(195, 210, 223);
-            break;
-        case TypeRAM:
-            m_themeColor = TQColor(139, 18, 174);     // #8B12AE
-            m_themeFillColor = TQColor(238, 230, 241); // #EEE6F1
-            m_frameColor = TQColor(220, 200, 230);
-            break;
-        case TypeDisk:
-            m_themeColor = TQColor(77, 166, 12);      // #4DA60C
-            m_themeFillColor = TQColor(205, 227, 168); // #CDE3A8
-            m_frameColor = TQColor(205, 220, 195);
-            break;
-        case TypeNetwork:
-            m_themeColor = TQColor(12, 109, 166);     // #0C6DA6
-            m_themeFillColor = TQColor(220, 235, 245); // #DCEBF5
-            m_frameColor = TQColor(195, 215, 230);
-            break;
-        case TypeGPU:
-            m_themeColor = TQColor(46, 125, 50);      // #2E7D32
-            m_themeFillColor = TQColor(200, 230, 201); // #C8E6C9
-            m_frameColor = TQColor(195, 220, 195);
-            break;
-    }
+    updateThemeColors();
     updateLabels(m_cachedTitle, m_cachedValue);
 }
 
@@ -197,7 +171,7 @@ void MiniBlockWidget::drawMiniGraph(TQPainter& p, const TQRect& r)
 
     // Draw graph frame with soft pastel border color
     p.setPen(m_frameColor);
-    p.setBrush(TQColor(255, 255, 255));
+    p.setBrush(colorGroup().base());
     p.drawRect(r);
 
     if (samples_count <= 1) return;
@@ -285,19 +259,25 @@ void MiniBlockWidget::drawMiniGraph(TQPainter& p, const TQRect& r)
 void MiniBlockWidget::paintEvent(TQPaintEvent* e)
 {
     (void)e;
+    updateThemeColors();
     TQPainter p(this);
 
+    TQColorGroup cg = colorGroup();
     // Background selection highlight
     if (m_selected) {
-        p.fillRect(rect(), TQColor(179, 217, 255)); // Windows active blue #B3D9FF
+        p.fillRect(rect(), cg.highlight()); // Adapts to theme/custom selection color
     } else if (m_hovered) {
-        p.fillRect(rect(), TQColor(242, 246, 252)); // Hover background
+        p.fillRect(rect(), cg.background().dark(104)); // Hover background adapting to theme
     } else {
-        p.fillRect(rect(), TQColor(255, 255, 255)); // Clean white background
+        p.fillRect(rect(), cg.background()); // Theme/custom background
     }
 
+    TQColor textCol = m_selected ? cg.highlightedText() : TQColor(0, 0, 0);
+    TQColor subTextCol = m_selected ? cg.highlightedText() : TQColor(120, 120, 120);
+    TQColor valTextCol = m_selected ? cg.highlightedText() : TQColor(80, 80, 80);
+
     if (s_hideGraphs) {
-        p.setPen(TQColor(0, 0, 0));
+        p.setPen(textCol);
         p.setFont(font());
 
         if (m_type == TypeDisk || m_type == TypeNetwork) {
@@ -315,7 +295,7 @@ void MiniBlockWidget::paintEvent(TQPaintEvent* e)
             TQFont f2 = p.font();
             f2.setPointSize(f2.pointSize() - 1);
             p.setFont(f2);
-            p.setPen(TQColor(120, 120, 120));
+            p.setPen(subTextCol);
             p.drawText(12, 31, m_line2);
             p.restore();
 
@@ -324,7 +304,7 @@ void MiniBlockWidget::paintEvent(TQPaintEvent* e)
             TQFont f3 = p.font();
             f3.setPointSize(f3.pointSize() - 1);
             p.setFont(f3);
-            p.setPen(TQColor(80, 80, 80));
+            p.setPen(valTextCol);
             p.drawText(12, 46, m_line3);
             p.restore();
         } else {
@@ -342,7 +322,7 @@ void MiniBlockWidget::paintEvent(TQPaintEvent* e)
             TQFont f2 = p.font();
             f2.setPointSize(f2.pointSize() - 1);
             p.setFont(f2);
-            p.setPen(TQColor(80, 80, 80));
+            p.setPen(valTextCol);
             p.drawText(12, 40, m_line3);
             p.restore();
         }
@@ -351,7 +331,7 @@ void MiniBlockWidget::paintEvent(TQPaintEvent* e)
         TQRect graphRect(12, 10, 68, 50);
         drawMiniGraph(p, graphRect);
 
-        p.setPen(TQColor(0, 0, 0));
+        p.setPen(textCol);
         p.setFont(font());
 
         // Title label (bold)
@@ -367,10 +347,33 @@ void MiniBlockWidget::paintEvent(TQPaintEvent* e)
         TQFont f2 = p.font();
         f2.setPointSize(f2.pointSize() - 1);
         p.setFont(f2);
-        p.setPen(TQColor(80, 80, 80));
+        p.setPen(valTextCol);
         p.drawText(88, 48, m_cachedValue);
         p.restore();
     }
+}
+
+void MiniBlockWidget::updateThemeColors()
+{
+    switch (m_type) {
+        case TypeCPU:
+            m_themeColor = GraphColors::cpu;
+            break;
+        case TypeRAM:
+            m_themeColor = GraphColors::ram;
+            break;
+        case TypeDisk:
+            m_themeColor = GraphColors::diskRead;
+            break;
+        case TypeNetwork:
+            m_themeColor = GraphColors::netRecv;
+            break;
+        case TypeGPU:
+            m_themeColor = GraphColors::gpu;
+            break;
+    }
+    m_themeFillColor = GraphColors::getFillColor(m_themeColor);
+    m_frameColor = m_themeColor.light(140);
 }
 
 #include "mini_block_widget.moc"

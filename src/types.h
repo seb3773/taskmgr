@@ -260,11 +260,8 @@ struct task
     // Pack flags + nice dans 16-bit - 2 bytes
     guint16 flags_nice_packed;  // flags[8bit] + nice[8bit]
     
-    // Cache hash pour comparaisons rapides (optimisation 2-2.5% CPU) - 8 bytes
-    guint64 cached_hash;        // Hash pré-calculé évite recalcul à chaque refresh
-    
-    // Padding explicite pour alignement cache-line - 34 bytes
-    gchar padding_cacheline[34];  // Force alignement 64 bytes
+    // Padding explicite pour alignement cache-line - 42 bytes
+    gchar padding_cacheline[42];  // Force alignement 64 bytes
     
     // Total: 64 bytes exactement - CACHE-LINE PARFAITE
     

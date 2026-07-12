@@ -13,7 +13,7 @@ def optimize_png(filename):
             # Redimensionner à 24x24 pour économiser de l'espace
             # (sauf tuxmgr 100x100 et icônes fenêtre qxtask/qxtask_root 64x64)
             basename = os.path.basename(filename)
-            keep_size = basename in ("tuxmgr.png", "qxtask.png", "qxtask_root.png")
+            keep_size = basename in ("tuxmgr.png", "qxtask.png", "qxtask_root.png", "root.png")
             if not keep_size and img.size != (24, 24):
                 img = img.resize((24, 24), Image.LANCZOS)
             

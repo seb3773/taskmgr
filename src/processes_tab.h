@@ -33,6 +33,9 @@ public:
     /* Refresh the process list from the backend */
     void refresh();
 
+    /* Programmatically select and center a PID in the tree view */
+    void selectPid(pid_t pid);
+
     /* Startup fast path: one /proc scan, generic icons; then refreshIconsOnly() */
     void refreshLight();
     void refreshIconsOnly();

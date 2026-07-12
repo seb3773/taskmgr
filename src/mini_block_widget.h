@@ -62,6 +62,7 @@ private:
 
     void updateLabels(TQString &title, TQString &value);
     void drawMiniGraph(TQPainter& p, const TQRect& r);
+    void updateThemeColors();
 };
 
 #endif // MINI_BLOCK_WIDGET_H

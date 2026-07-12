@@ -87,6 +87,8 @@ int main(int argc, char** argv) {
 
     // Initialize backend caches and preferences
     load_config();
+    GraphColors::load();
+    GaugeColors::load();
 
     TDEAboutData aboutData("taskmgr", I18N_NOOP("Task Manager"), "1.0",
                            I18N_NOOP("Task Manager"), TDEAboutData::License_GPL);
@@ -138,6 +140,8 @@ int main(int argc, char** argv) {
     // Clean up C backend subsystems
     cleanup_uid_cache();
     cleanup_pss_thread();
+    cleanup_system_status();
+    cleanup_disk_system_info();
     g_free(config_file);
 
     return ret;

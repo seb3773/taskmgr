@@ -2,8 +2,14 @@
 #ifndef FUNCTIONS_H
 #define FUNCTIONS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 // Fonction pour obtenir la valeur exacte des jiffies par seconde
 long get_jiffies_per_second(void);
+#ifdef __cplusplus
+}
+#endif
 
 // Fonctions optimisées pour parsing rapide de /proc/[pid]/stat
 // ULTRA-OPTIMISÉ: result * 10 remplacé par (result << 3) + (result << 1) = 8*result + 2*result
@@ -311,9 +317,7 @@ enum {
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifdef __LINUX__
 #include "taskmgr-linux.h"
-#endif
 
 #define PROC_DIR_1 "/compat/linux/proc"
 #define PROC_DIR_2 "/emul/linux/proc"
@@ -334,12 +338,14 @@ typedef struct __attribute__((packed)) {
     uint8_t terminal_index; // 0 = non défini, >0 = index dans available_terminals + 1
 } config_data_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 gboolean refresh_task_list(void);
 gboolean refresh_pss_only(void);
 void cleanup_system_status(void);
 
-// Hash ultra-rapide pour détection changements processus (gain 15-20% + 2-2.5% avec cache)
-uint64_t compute_task_hash_quick(const struct task *t);
 
 // ============================================================================
 // REFRESH CONDITIONNEL ULTRA-GRANULAIRE PAR ONGLET
@@ -348,7 +354,6 @@ uint64_t compute_task_hash_quick(const struct task *t);
 
 // Fonctions optimisées pour collecte ciblée
 gfloat get_total_gpu_usage_fast(void);       // GPU total sans détail processus
-gboolean refresh_task_list(void);
 guint get_process_count_fast(void);          // Nombre processus sans détails
 guint get_thread_count_fast(void);           // Nombre threads sans détails
 gdouble get_cpu_usage(system_status *sys_stat);
@@ -429,6 +434,7 @@ void get_disk_io_rates(gdouble *read_kbs, gdouble *write_kbs);
 
 // Fonctions pour les informations disque système
 void init_disk_system_info(void);
+void cleanup_disk_system_info(void);
 long get_disk_capacity_gb(const char *device);
 gboolean check_swap_on_disk(const char *device);
 
@@ -437,6 +443,11 @@ long get_block_size_bytes(void);
 long count_online_blocks(void);
 double get_installed_ram_gib(void);
 void get_swap_info(guint64 *swap_total, guint64 *swap_free);
+guint64 get_cached_mem_free(void);
+guint64 get_cached_mem_cached(void);
+guint64 get_cached_mem_buffered(void);
+guint64 get_cached_swap_total_val(void);
+guint64 get_cached_swap_free_val(void);
 
 // Fonctions pour les informations RAM avancées (style Windows)
 long long get_meminfo_value(const char *key);
@@ -474,8 +485,6 @@ typedef struct {
     char *session_id;
 } user_session_t;
 
-
-
 char **get_logged_in_users(void);
 user_session_t **get_logged_in_users_with_sessions(void);
 user_with_sessions_t **get_logged_in_users_with_session_info(void);
@@ -484,6 +493,10 @@ gboolean disconnect_user_sessions(const char *username);
 // Status icon functions
 void update_status_icon_cpu(int cpu_percentage);
 void update_status_icon_tooltip(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

@@ -31,6 +31,15 @@
 #define SYS_BLOCK_FMT "/sys/block/%s/%s"
 #define SYS_NET_FMT "/sys/class/net/%s/%s"
 
+/* Structure pour getdents64 (optimisation Linux) */
+struct linux_dirent64 {
+    ino64_t        d_ino;
+    off64_t        d_off;
+    unsigned short d_reclen;
+    unsigned char  d_type;
+    char           d_name[];
+};
+
 /* Common buffer sizes */
 #define PATH_BUFFER_SIZE 512
 #define LINE_BUFFER_SIZE 256
@@ -162,13 +171,15 @@ static inline char* format_memory_mb(char* buffer, size_t size, guint64 bytes) {
 }
 
 static inline char* format_memory_gb(char* buffer, size_t size, guint64 bytes) {
-    snprintf(buffer, size, "%.1f GB", (double)bytes / (1024.0 * 1024.0));
+    (void)size;
+    format_float_gb(buffer, (double)bytes / (1024.0 * 1024.0));
     return buffer;
 }
 
 /* Speed formatting helper */
 static inline char* format_speed_ghz(char* buffer, size_t size, gdouble mhz) {
-    snprintf(buffer, size, "%.2f GHz", mhz / 1000.0);
+    (void)size;
+    format_float_ghz(buffer, mhz / 1000.0);
     return buffer;
 }
 

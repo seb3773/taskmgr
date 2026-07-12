@@ -15,6 +15,10 @@
  * - Live text filtering across all columns
  * - Style support via TQtCellStyle
  */
+class TQLabel;
+class TQTimer;
+class TQFrame;
+
 class TQtMvcTableView : public TQTable
 {
     TQ_OBJECT
@@ -121,6 +125,8 @@ protected:
     void currentChanged(int row, int col);
     void contentsContextMenuEvent(TQContextMenuEvent* e);
     bool eventFilter(TQObject* watched, TQEvent* event);
+    void keyPressEvent(TQKeyEvent* e);
+    void resizeEvent(TQResizeEvent* e);
 
 private slots:
     void onDataChanged(int rowStart, int rowEnd);
@@ -128,6 +134,7 @@ private slots:
     void onRowsRemoved(int row, int count);
     void onModelReset();
     void onHeaderClicked(int col);
+    void hideSearch();
 
 private:
     void syncColumns();
@@ -163,6 +170,13 @@ private:
     // Key: (pixmap serialNumber << 16) | targetHeight
     TQMap<long, TQPixmap> m_scaledIconCache;
     int m_blockPaintingDepth;
+
+    void updateSearch();
+    TQString m_searchText;
+    TQFrame* m_searchWidget;
+    TQLabel* m_searchIconLabel;
+    TQLabel* m_searchTextLabel;
+    TQTimer* m_searchTimer;
 };
 
 #endif // TQTMVCTABLEVIEW_H

@@ -450,6 +450,42 @@ void ProcessesTab::refresh()
         refreshFull(false);
 }
 
+static int findNodeIdByPid(TQtTreeStore* store, int parentId, pid_t pid) {
+    int count = store->childCount(parentId);
+    for (int i = 0; i < count; i++) {
+        int childId = store->childAt(parentId, i);
+        TQString pidStr = store->data(TQtModelIndex(childId, 9)).toString();
+        if (pidStr.toInt() == pid) {
+            return childId;
+        }
+        int found = findNodeIdByPid(store, childId, pid);
+        if (found >= 0) {
+            return found;
+        }
+    }
+    return -1;
+}
+
+void ProcessesTab::selectPid(pid_t pid)
+{
+    refresh();
+
+    int targetNodeId = findNodeIdByPid(m_store, TQtTreeStore::RootNodeId, pid);
+    if (targetNodeId >= 0) {
+        int parentId = m_store->parentId(targetNodeId);
+        while (parentId != TQtTreeStore::RootNodeId) {
+            if (!m_treeView->isExpanded(parentId)) {
+                m_treeView->setExpanded(parentId, true);
+            }
+            parentId = m_store->parentId(parentId);
+        }
+
+        TQtModelIndex idx(targetNodeId, 0);
+        m_treeView->selectIndex(idx);
+        m_treeView->ensureIndexVisible(idx);
+    }
+}
+
 void ProcessesTab::refreshLight()
 {
     if (m_compactMode)

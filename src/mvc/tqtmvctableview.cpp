@@ -6,6 +6,12 @@
 #include <ntqrect.h>
 #include <ntqevent.h>
 #include <ntqimage.h>
+#include <ntqlabel.h>
+#include <ntqtimer.h>
+#include <ntqframe.h>
+#include <ntqlayout.h>
+#include <ntqscrollbar.h>
+#include "tde_icon_loader.h"
 #include <algorithm>  // std::sort
 
 // ============================================================================
@@ -98,6 +104,12 @@ TQtMvcTableView::TQtMvcTableView(TQWidget* parent)
 
     // Connect header click for sorting
     connect(horizontalHeader(), SIGNAL(clicked(int)), this, SLOT(onHeaderClicked(int)));
+
+    m_searchWidget = 0;
+    m_searchIconLabel = 0;
+    m_searchTextLabel = 0;
+    m_searchTimer = new TQTimer(this);
+    connect(m_searchTimer, SIGNAL(timeout()), this, SLOT(hideSearch()));
 }
 
 TQtMvcTableView::~TQtMvcTableView()
@@ -634,6 +646,143 @@ void TQtMvcTableView::paintEmptyArea(TQPainter* p, int cx, int cy, int cw, int c
         return true;
     }
     return TQTable::eventFilter(obj, ev);
+}
+
+void TQtMvcTableView::keyPressEvent(TQKeyEvent* e)
+{
+    // Ignore key modifiers except Shift (Shift is allowed for uppercase letters)
+    if (e->state() & (TQt::ControlButton | TQt::AltButton | TQt::MetaButton)) {
+        TQTable::keyPressEvent(e);
+        return;
+    }
+
+    if (e->key() == TQt::Key_Escape) {
+        if (!m_searchText.isEmpty()) {
+            hideSearch();
+            e->accept();
+            return;
+        }
+    }
+    else if (e->key() == TQt::Key_Backspace || e->key() == TQt::Key_BackSpace) {
+        if (!m_searchText.isEmpty()) {
+            m_searchText.truncate(m_searchText.length() - 1);
+            updateSearch();
+            e->accept();
+            return;
+        }
+    }
+    else if (!e->text().isEmpty() && e->text()[0].isPrint()) {
+        m_searchText.append(e->text());
+        updateSearch();
+        e->accept();
+        return;
+    }
+
+    TQTable::keyPressEvent(e);
+}
+
+void TQtMvcTableView::resizeEvent(TQResizeEvent* e)
+{
+    TQTable::resizeEvent(e);
+    if (m_searchWidget && m_searchWidget->isVisible()) {
+        int x = width() - m_searchWidget->width() - 10;
+        int y = height() - m_searchWidget->height() - 10;
+        if (verticalScrollBar() && verticalScrollBar()->isVisible()) {
+            x -= verticalScrollBar()->width();
+        }
+        if (horizontalScrollBar() && horizontalScrollBar()->isVisible()) {
+            y -= horizontalScrollBar()->height();
+        }
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+        m_searchWidget->move(x, y);
+    }
+}
+
+void TQtMvcTableView::updateSearch()
+{
+    if (m_searchText.isEmpty()) {
+        hideSearch();
+        return;
+    }
+
+    if (!m_searchWidget) {
+        m_searchWidget = new TQFrame(this, "search_overlay");
+        m_searchWidget->setFrameStyle(TQFrame::Box | TQFrame::Plain);
+        m_searchWidget->setLineWidth(1);
+        m_searchWidget->setPaletteBackgroundColor(colorGroup().background());
+        m_searchWidget->setPaletteForegroundColor(colorGroup().foreground());
+
+        TQHBoxLayout* layout = new TQHBoxLayout(m_searchWidget, 4, 6); // margin=4, spacing=6
+
+        m_searchIconLabel = new TQLabel(m_searchWidget);
+        TQPixmap pix = TdeIconLoader::loadSmallIcon("find");
+        if (pix.isNull()) {
+            pix.load("icons/find.png");
+        }
+        if (pix.isNull()) {
+            pix.load("../icons/find.png");
+        }
+        if (!pix.isNull()) {
+            m_searchIconLabel->setPixmap(pix);
+            layout->addWidget(m_searchIconLabel);
+        } else {
+            delete m_searchIconLabel;
+            m_searchIconLabel = 0;
+        }
+
+        m_searchTextLabel = new TQLabel(m_searchWidget);
+        m_searchTextLabel->setPaletteForegroundColor(colorGroup().foreground());
+        layout->addWidget(m_searchTextLabel);
+    }
+
+    if (m_searchTextLabel) {
+        m_searchTextLabel->setText(m_searchText);
+    }
+    m_searchWidget->adjustSize();
+
+    int x = width() - m_searchWidget->width() - 10;
+    int y = height() - m_searchWidget->height() - 10;
+    if (verticalScrollBar() && verticalScrollBar()->isVisible()) {
+        x -= verticalScrollBar()->width();
+    }
+    if (horizontalScrollBar() && horizontalScrollBar()->isVisible()) {
+        y -= horizontalScrollBar()->height();
+    }
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    m_searchWidget->move(x, y);
+    m_searchWidget->show();
+    m_searchWidget->raise();
+
+    m_searchTimer->start(5000, true); // 5-second single shot timer
+
+    if (m_model) {
+        int matchRow = -1;
+        for (int r = 0; r < numRows(); ++r) {
+            int mRow = modelRow(r);
+            if (mRow >= 0) {
+                TQString name = m_model->data(mRow, 0).toString();
+                if (name.startsWith(m_searchText, false)) { // case-insensitive prefix match
+                    matchRow = r;
+                    break;
+                }
+            }
+        }
+        if (matchRow >= 0) {
+            setCurrentCell(matchRow, 0);
+            selectRow(matchRow);
+            ensureCellVisible(matchRow, 0);
+        }
+    }
+}
+
+void TQtMvcTableView::hideSearch()
+{
+    m_searchText = "";
+    if (m_searchWidget) {
+        m_searchWidget->hide();
+    }
 }
 
 

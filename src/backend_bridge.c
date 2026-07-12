@@ -456,3 +456,210 @@ CPUInfoData* get_cpu_info_data(void) {
 
     return &cpu_info_cache;
 }
+
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+#include <X11/cursorfont.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <string.h>
+
+static void get_process_name_by_pid(pid_t pid, char *out_name, size_t max_len) {
+    out_name[0] = '\0';
+    if (pid <= 0) return;
+    char path[128];
+    snprintf(path, sizeof(path), "/proc/%d/comm", (int)pid);
+    int fd = open(path, O_RDONLY);
+    if (fd >= 0) {
+        ssize_t bytes = read(fd, out_name, max_len - 1);
+        close(fd);
+        if (bytes > 0) {
+            out_name[bytes] = '\0';
+            // Strip trailing newlines
+            size_t len = strlen(out_name);
+            while (len > 0 && (out_name[len - 1] == '\n' || out_name[len - 1] == '\r')) {
+                out_name[len - 1] = '\0';
+                len--;
+            }
+        }
+    }
+}
+
+static int is_system_wm_or_compositor(pid_t pid) {
+    char name[128];
+    get_process_name_by_pid(pid, name, sizeof(name));
+    if (strcmp(name, "twin") == 0 ||
+        strcmp(name, "compton") == 0 ||
+        strcmp(name, "compton-tde") == 0 ||
+        strcmp(name, "xcompmgr") == 0 ||
+        strcmp(name, "taskmgr") == 0 ||
+        strcmp(name, "xkill") == 0) {
+        return 1;
+    }
+    return 0;
+}
+
+static int get_window_pid(Display *dpy, Window w, pid_t *pid) {
+    Atom atom = XInternAtom(dpy, "_NET_WM_PID", True);
+    if (atom == None) return 0;
+    Atom actual;
+    int format;
+    unsigned long nitems, bytes;
+    unsigned char *prop = NULL;
+    if (XGetWindowProperty(dpy, w, atom, 0, 1, False, XA_CARDINAL, &actual, &format, &nitems, &bytes, &prop) != Success) {
+        return 0;
+    }
+    if (!prop) return 0;
+    if (nitems == 1 && format == 32) {
+        pid_t candidate = (pid_t)(*(unsigned long *)prop);
+        XFree(prop);
+        // If this PID is a WM/compositor, ignore it to keep searching
+        if (is_system_wm_or_compositor(candidate)) {
+            return 0;
+        }
+        *pid = candidate;
+        return 1;
+    }
+    XFree(prop);
+    return 0;
+}
+
+static Window find_client_window_down(Display *dpy, Window w) {
+    pid_t pid;
+    if (get_window_pid(dpy, w, &pid)) {
+        return w;
+    }
+
+    Window root, parent, *children = NULL;
+    unsigned int nchildren = 0;
+    if (!XQueryTree(dpy, w, &root, &parent, &children, &nchildren)) {
+        return None;
+    }
+
+    Window found = None;
+    if (children) {
+        for (unsigned int i = 0; i < nchildren; i++) {
+            found = find_client_window_down(dpy, children[i]);
+            if (found != None) {
+                break;
+            }
+        }
+        XFree(children);
+    }
+    return found;
+}
+
+static Window find_client_window(Display *dpy, Window w) {
+    Window root = DefaultRootWindow(dpy);
+    Window current = w;
+    pid_t pid;
+
+    // 1. Search upwards first (if clicked on a sub-widget inside the client window)
+    while (current != None && current != root) {
+        if (get_window_pid(dpy, current, &pid)) {
+            return current;
+        }
+        Window r, p, *c = NULL;
+        unsigned int nc;
+        if (!XQueryTree(dpy, current, &r, &p, &c, &nc)) {
+            break;
+        }
+        if (c) XFree(c);
+        current = p;
+    }
+
+    // 2. Search downwards (if clicked on frame/decorations)
+    return find_client_window_down(dpy, w);
+}
+
+static pid_t window_to_pid(Display *dpy, Window w)
+{
+    w = find_client_window(dpy, w);
+    pid_t pid = -1;
+    if (w != None) {
+        get_window_pid(dpy, w, &pid);
+    }
+    return pid;
+}
+
+static int ignore_x_errors(Display *dpy, XErrorEvent *ev) {
+    (void)dpy;
+    (void)ev;
+    return 0;
+}
+
+pid_t backend_pick_window_pid(void)
+{
+    Display *dpy = XOpenDisplay(NULL);
+    if (!dpy)
+        return -1;
+
+    Window root = DefaultRootWindow(dpy);
+    Cursor cursor = XCreateFontCursor(dpy, XC_crosshair);
+
+    // Discard any pending events in the X queue before grabbing
+    XSync(dpy, True);
+
+    int rc = XGrabPointer(dpy,
+                          root,
+                          False,
+                          ButtonPressMask,
+                          GrabModeSync,
+                          GrabModeAsync,
+                          None,
+                          cursor,
+                          CurrentTime);
+
+    if (rc != GrabSuccess) {
+        XFreeCursor(dpy, cursor);
+        XCloseDisplay(dpy);
+        return -1;
+    }
+
+    XEvent ev;
+    Window clicked = None;
+
+    while (1) {
+        XAllowEvents(dpy, SyncPointer, CurrentTime);
+        XWindowEvent(dpy, root, ButtonPressMask, &ev);
+
+        if (ev.type == ButtonPress) {
+            clicked = ev.xbutton.subwindow;
+            break;
+        }
+    }
+
+    XUngrabPointer(dpy, CurrentTime);
+    XFreeCursor(dpy, cursor);
+
+    // Discard any trailing events (e.g. ButtonRelease)
+    XSync(dpy, True);
+
+    if (clicked == None || clicked == root) {
+        XCloseDisplay(dpy);
+        return -1;
+    }
+
+    // Protect against X11 errors while querying window tree
+    XErrorHandler old_handler = XSetErrorHandler(ignore_x_errors);
+    pid_t pid = window_to_pid(dpy, clicked);
+    XSync(dpy, False);
+    XSetErrorHandler(old_handler);
+
+    XCloseDisplay(dpy);
+    return pid;
+}
+
+int backend_kill_pid(pid_t pid)
+{
+    if (pid <= 1)
+        return -1;
+    return kill(pid, SIGKILL);
+}
+
+void backend_get_process_name(pid_t pid, char* name_buffer, int buffer_size)
+{
+    get_process_name_by_pid(pid, name_buffer, (size_t)buffer_size);
+}
