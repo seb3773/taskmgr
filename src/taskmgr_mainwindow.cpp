@@ -23,6 +23,7 @@
 #include <ntqpopupmenu.h>
 #include <ntqlayout.h>
 #include <ntqtabwidget.h>
+#include <ntqstatusbar.h>
 #include <ntqobjectlist.h>
 #include <ntqtooltip.h>
 #include <twin.h>
@@ -159,6 +160,7 @@ void TaskMgrMainWindow::runInitialRefresh()
         m_processesTabContent->refreshIconsOnly();
 
     setupSystemTray();
+    updateStatusBar();
 }
 
 TaskMgrMainWindow::~TaskMgrMainWindow()
@@ -388,6 +390,7 @@ void TaskMgrMainWindow::onRefreshTimeout()
     }
 
     updateGaugesVisibility();
+    updateStatusBar();
 }
 
 void TaskMgrMainWindow::onTabChanged(TQWidget* widget)
@@ -409,6 +412,7 @@ void TaskMgrMainWindow::onTabChanged(TQWidget* widget)
     updateGaugesVisibility();
     updateSystemMetrics();
     updateViewMenu();
+    updateStatusBar();
 }
 
 void TaskMgrMainWindow::onMenuQuit()
@@ -526,6 +530,7 @@ void TaskMgrMainWindow::onMenuSettings()
     if (dlg.exec() == TQDialog::Accepted) {
         setPalette(TQApplication::palette());
         updateGaugesVisibility();
+        updateStatusBar();
         if (m_processesTabContent) {
             m_processesTabContent->refresh();
         }
@@ -886,6 +891,46 @@ void TaskMgrMainWindow::updateSystemTray(double cpuPercent)
 
     m_tray->setTooltipStats(cpuSample, ramPercent, diskPercent,
                             networkRxTotal + networkTxTotal);
+}
+
+void TaskMgrMainWindow::updateStatusBar()
+{
+    bool showStatus = (bridge_get_display_flags() & DISPLAY_FLAG_SHOW_STATUS_BAR) != 0;
+    if (!showStatus) {
+        if (statusBar()->isVisible()) {
+            statusBar()->hide();
+        }
+        return;
+    }
+
+    statusBar()->show();
+
+    TQWidget* curPage = m_tabWidget->currentPage();
+    if (curPage == m_processesTab || curPage == m_performanceTab) {
+        long total_processes = get_process_count_fast();
+        long total_threads = get_system_thread_count_fast();
+        TQString msg = TQString("Tasks: %1  Threads: %2").arg(total_processes).arg(total_threads);
+        statusBar()->message(msg);
+    } else if (curPage == m_startupTab) {
+        int enabled = 0, disabled = 0;
+        m_startupTabContent->getCounts(enabled, disabled);
+        TQString msg = TQString("%1 entries enabled     %2 entries disabled").arg(enabled).arg(disabled);
+        statusBar()->message(msg);
+    } else if (curPage == m_usersTab) {
+        int userCount = m_usersTabContent->getUserCount();
+        long total_processes = get_process_count_fast();
+        long total_threads = get_system_thread_count_fast();
+        TQString userWord = (userCount > 1) ? "users" : "user";
+        TQString msg = TQString("%1 %2 connected     Tasks: %3  Threads: %4")
+                       .arg(userCount).arg(userWord).arg(total_processes).arg(total_threads);
+        statusBar()->message(msg);
+    } else if (curPage == m_servicesTab) {
+        int running = 0, stopped = 0, failed = 0;
+        m_servicesTabContent->getCounts(running, stopped, failed);
+        TQString msg = TQString("%1 services running     %2 services stopped    %3 services failed")
+                       .arg(running).arg(stopped).arg(failed);
+        statusBar()->message(msg);
+    }
 }
 
 #include "taskmgr_mainwindow.moc"

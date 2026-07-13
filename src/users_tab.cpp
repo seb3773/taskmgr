@@ -394,6 +394,11 @@ void UsersTab::refresh()
     freeLoggedUsersList(loggedUsers);
 }
 
+int UsersTab::getUserCount() const
+{
+    return m_store->childCount(TQtTreeStore::RootNodeId);
+}
+
 void UsersTab::onHeaderClicked(int col)
 {
     switch (col) {

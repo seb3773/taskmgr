@@ -359,6 +359,7 @@ typedef struct
 // ============================================================================
 #define DISPLAY_FLAG_SHOW_PROCESS_ICONS  0x0001  // Afficher les icônes de processus
 #define DISPLAY_FLAG_USE_TDE_RUN_DIALOG  0x0002  // Utiliser le dialogue d'exécution TDE
+#define DISPLAY_FLAG_SHOW_STATUS_BAR     0x0004  // Afficher la barre de statut
 
 // Task flags bitmasks (pour task.flags)
 #define TASK_FLAG_CHECKED           0x01

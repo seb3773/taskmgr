@@ -332,6 +332,7 @@ private:
     void enterProcessesCompactMode();
     void exitProcessesCompactMode();
     void updateViewMenu();
+    void updateStatusBar();
 
     TQTabWidget* m_tabWidget;
     TQWidget* m_tabBar;

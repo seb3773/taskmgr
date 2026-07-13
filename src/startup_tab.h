@@ -27,6 +27,9 @@ public:
     /* Refresh the startup list from the backend */
     void refresh();
 
+    /* Count enabled and disabled startup entries */
+    void getCounts(int& enabledCount, int& disabledCount) const;
+
     /* Accessor for the table view */
     TQtMvcTableView* tableView() const { return m_tableView; }
 

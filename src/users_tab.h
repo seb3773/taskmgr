@@ -26,6 +26,7 @@ public:
     virtual ~UsersTab();
 
     void refresh();
+    int getUserCount() const;
     TQtMvcTreeView* treeView() const { return m_treeView; }
 
 private slots:

@@ -133,6 +133,24 @@ void ServicesTab::refresh()
     m_tableView->unblockPainting();
 }
 
+void ServicesTab::getCounts(int& runningCount, int& stoppedCount, int& failedCount) const
+{
+    runningCount = 0;
+    stoppedCount = 0;
+    failedCount = 0;
+    int rows = m_store->rowCount();
+    for (int i = 0; i < rows; ++i) {
+        TQString status = m_store->data(i, 2).toString();
+        if (status == "running") {
+            runningCount++;
+        } else if (status == "failed") {
+            failedCount++;
+        } else {
+            stoppedCount++;
+        }
+    }
+}
+
 void ServicesTab::onRowContextMenuRequested(int modelRow, int col, const TQPoint& globalPos)
 {
     (void)col;

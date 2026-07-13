@@ -27,6 +27,9 @@ public:
     /* Refresh the services list from the backend */
     void refresh();
 
+    /* Count running, stopped and failed services */
+    void getCounts(int& runningCount, int& stoppedCount, int& failedCount) const;
+
     /* Accessor for the table view */
     TQtMvcTableView* tableView() const { return m_tableView; }
 

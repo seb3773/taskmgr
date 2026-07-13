@@ -117,6 +117,21 @@ void StartupTab::refresh()
     m_tableView->unblockPainting();
 }
 
+void StartupTab::getCounts(int& enabledCount, int& disabledCount) const
+{
+    enabledCount = 0;
+    disabledCount = 0;
+    int rows = m_store->rowCount();
+    for (int i = 0; i < rows; ++i) {
+        TQString status = m_store->data(i, 1).toString();
+        if (status == "Enabled") {
+            enabledCount++;
+        } else {
+            disabledCount++;
+        }
+    }
+}
+
 void StartupTab::onRowContextMenuRequested(int modelRow, int col, const TQPoint& globalPos)
 {
     (void)col;

@@ -252,6 +252,8 @@ void bridge_set_gpu_usage_mode(gint mode);
 
 RAMInfoData* get_ram_info_data(void);
 CPUInfoData* get_cpu_info_data(void);
+long get_system_thread_count_fast(void);
+unsigned int get_process_count_fast(void);
 long long get_paged_pool(void);
 long long get_non_paged_pool(void);
 

@@ -185,6 +185,7 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
     m_chkAntiAlias = new TQCheckBox("Enable anti aliasing", grpGeneral);
     m_chkIndividualFreq = new TQCheckBox("Display individual frequency in logical processor view", grpGeneral);
     m_chkUseTdeRunDialog = new TQCheckBox("Use TDE 'Run Command' dialog for new tasks", grpGeneral);
+    m_chkStatusBar = new TQCheckBox("Show status bar", grpGeneral);
 
     grpLayout->addWidget(m_chkMinimizeToTray);
     grpLayout->addWidget(m_chkGauges);
@@ -192,6 +193,7 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
     grpLayout->addWidget(m_chkAntiAlias);
     grpLayout->addWidget(m_chkIndividualFreq);
     grpLayout->addWidget(m_chkUseTdeRunDialog);
+    grpLayout->addWidget(m_chkStatusBar);
 
     col1->addWidget(grpGeneral);
 
@@ -564,6 +566,7 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
 
     guint16 d_flags = bridge_get_display_flags();
     m_chkUseTdeRunDialog->setChecked((d_flags & DISPLAY_FLAG_USE_TDE_RUN_DIALOG) != 0);
+    m_chkStatusBar->setChecked((d_flags & DISPLAY_FLAG_SHOW_STATUS_BAR) != 0);
 
     TQSettings settings;
     bool displayFreq = settings.readBoolEntry("/taskmgr/displayIndividualFrequency", true);
@@ -876,6 +879,12 @@ void PreferencesDialog::onOkClicked()
         d_flags |= DISPLAY_FLAG_USE_TDE_RUN_DIALOG;
     } else {
         d_flags &= ~DISPLAY_FLAG_USE_TDE_RUN_DIALOG;
+    }
+
+    if (m_chkStatusBar->isChecked()) {
+        d_flags |= DISPLAY_FLAG_SHOW_STATUS_BAR;
+    } else {
+        d_flags &= ~DISPLAY_FLAG_SHOW_STATUS_BAR;
     }
     bridge_set_display_flags(d_flags);
 

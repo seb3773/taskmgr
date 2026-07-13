@@ -1467,6 +1467,22 @@ guint get_process_count_fast(void) {
     return count;
 }
 
+// Nombre total de threads rapide via /proc/loadavg (O(1))
+long get_system_thread_count_fast(void) {
+    int fd = open("/proc/loadavg", O_RDONLY);
+    if (fd < 0) return 0;
+    char buf[128];
+    ssize_t n = read(fd, buf, sizeof(buf) - 1);
+    close(fd);
+    if (n <= 0) return 0;
+    buf[n] = '\0';
+    char *slash = strchr(buf, '/');
+    if (slash) {
+        return atol(slash + 1);
+    }
+    return 0;
+}
+
 // Nombre threads rapide sans détails (pour Performance)
 guint get_thread_count_fast(void) {
     guint total_threads = 0;

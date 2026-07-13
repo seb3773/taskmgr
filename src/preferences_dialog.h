@@ -37,6 +37,7 @@ private:
     TQCheckBox* m_chkCachedAsFree;
     TQCheckBox* m_chkIndividualFreq;
     TQCheckBox* m_chkUseTdeRunDialog;
+    TQCheckBox* m_chkStatusBar;
     TQComboBox* m_cmbGpuMode;
     
     TQComboBox* m_cmbFg;
