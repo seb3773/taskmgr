@@ -111,10 +111,11 @@ namespace GaugeColors {
 void applyAppPalette()
 {
     TQSettings settings;
-    bool useCustomFg = settings.readBoolEntry("/taskmgr/useCustomFg", false);
-    bool useCustomBg = settings.readBoolEntry("/taskmgr/useCustomBg", false);
-    bool useCustomSelBg = settings.readBoolEntry("/taskmgr/useCustomSelectionBg", false);
-    bool useCustomSelFg = settings.readBoolEntry("/taskmgr/useCustomSelectionFg", false);
+    int fgMode = settings.readNumEntry("/taskmgr/fgMode", 1);
+    int bgMode = settings.readNumEntry("/taskmgr/bgMode", 1);
+    int selBgMode = settings.readNumEntry("/taskmgr/selBgMode", 1);
+    int selFgMode = settings.readNumEntry("/taskmgr/selFgMode", 1);
+
     TQString fgColorStr = settings.readEntry("/taskmgr/foregroundColor", "#000000");
     TQString bgColorStr = settings.readEntry("/taskmgr/backgroundColor", "#ffffff");
     TQString selBgColorStr = settings.readEntry("/taskmgr/selectionBgColor", "#91C9F7");
@@ -123,14 +124,14 @@ void applyAppPalette()
     TQWidget dummy;
     TQPalette pal = dummy.palette();
 
-    if (useCustomFg) {
-        TQColor fg(fgColorStr);
+    if (fgMode != 0) {
+        TQColor fg = (fgMode == 1) ? TQColor("#000000") : TQColor(fgColorStr);
         pal.setColor(TQColorGroup::Foreground, fg);
         pal.setColor(TQColorGroup::Text, fg);
         pal.setColor(TQColorGroup::ButtonText, fg);
     }
-    if (useCustomBg) {
-        TQColor bg(bgColorStr);
+    if (bgMode != 0) {
+        TQColor bg = (bgMode == 1) ? TQColor("#ffffff") : TQColor(bgColorStr);
         TQColor light = bg.light(150);
         TQColor midlight = bg.light(115);
         TQColor mid = bg.dark(115);
@@ -145,11 +146,13 @@ void applyAppPalette()
         pal.setColor(TQColorGroup::Dark, dark);
         pal.setColor(TQColorGroup::Shadow, TQt::black);
     }
-    if (useCustomSelBg) {
-        pal.setColor(TQColorGroup::Highlight, TQColor(selBgColorStr));
+    if (selBgMode != 0) {
+        TQColor selBg = (selBgMode == 1) ? TQColor("#91C9F7") : TQColor(selBgColorStr);
+        pal.setColor(TQColorGroup::Highlight, selBg);
     }
-    if (useCustomSelFg) {
-        pal.setColor(TQColorGroup::HighlightedText, TQColor(selFgColorStr));
+    if (selFgMode != 0) {
+        TQColor selFg = (selFgMode == 1) ? TQColor("#000000") : TQColor(selFgColorStr);
+        pal.setColor(TQColorGroup::HighlightedText, selFg);
     }
 
     TQApplication::setPalette(pal, true);
@@ -262,6 +265,7 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
 
     grid->addWidget(new TQLabel("Foreground:", grpColors), 0, 0);
     m_cmbFg = new TQComboBox(false, grpColors);
+    m_cmbFg->insertItem("System");
     m_cmbFg->insertItem("Default");
     m_cmbFg->insertItem("Custom");
     grid->addWidget(m_cmbFg, 0, 1);
@@ -272,6 +276,7 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
 
     grid->addWidget(new TQLabel("Background:", grpColors), 1, 0);
     m_cmbBg = new TQComboBox(false, grpColors);
+    m_cmbBg->insertItem("System");
     m_cmbBg->insertItem("Default");
     m_cmbBg->insertItem("Custom");
     grid->addWidget(m_cmbBg, 1, 1);
@@ -282,6 +287,7 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
 
     grid->addWidget(new TQLabel("Selection bg:", grpColors), 2, 0);
     m_cmbSelBg = new TQComboBox(false, grpColors);
+    m_cmbSelBg->insertItem("System");
     m_cmbSelBg->insertItem("Default");
     m_cmbSelBg->insertItem("Custom");
     grid->addWidget(m_cmbSelBg, 2, 1);
@@ -292,6 +298,7 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
 
     grid->addWidget(new TQLabel("Selection fg:", grpColors), 3, 0);
     m_cmbSelFg = new TQComboBox(false, grpColors);
+    m_cmbSelFg->insertItem("System");
     m_cmbSelFg->insertItem("Default");
     m_cmbSelFg->insertItem("Custom");
     grid->addWidget(m_cmbSelFg, 3, 1);
@@ -573,23 +580,23 @@ PreferencesDialog::PreferencesDialog(TQWidget* parent)
     m_chkIndividualFreq->setChecked(displayFreq);
 
     // UI Colors loading
-    bool useCustomFg = settings.readBoolEntry("/taskmgr/useCustomFg", false);
-    m_cmbFg->setCurrentItem(useCustomFg ? 1 : 0);
+    int fgMode = settings.readNumEntry("/taskmgr/fgMode", 1);
+    m_cmbFg->setCurrentItem(fgMode);
     m_fgColor = TQColor(settings.readEntry("/taskmgr/foregroundColor", "#000000"));
     updateColorButton(m_btnFgColor, getButtonColor(m_btnFgColor));
 
-    bool useCustomBg = settings.readBoolEntry("/taskmgr/useCustomBg", false);
-    m_cmbBg->setCurrentItem(useCustomBg ? 1 : 0);
+    int bgMode = settings.readNumEntry("/taskmgr/bgMode", 1);
+    m_cmbBg->setCurrentItem(bgMode);
     m_bgColor = TQColor(settings.readEntry("/taskmgr/backgroundColor", "#ffffff"));
     updateColorButton(m_btnBgColor, getButtonColor(m_btnBgColor));
 
-    bool useCustomSelBg = settings.readBoolEntry("/taskmgr/useCustomSelectionBg", false);
-    m_cmbSelBg->setCurrentItem(useCustomSelBg ? 1 : 0);
+    int selBgMode = settings.readNumEntry("/taskmgr/selBgMode", 1);
+    m_cmbSelBg->setCurrentItem(selBgMode);
     m_selBgColor = TQColor(settings.readEntry("/taskmgr/selectionBgColor", "#91C9F7"));
     updateColorButton(m_btnSelBg, getButtonColor(m_btnSelBg));
 
-    bool useCustomSelFg = settings.readBoolEntry("/taskmgr/useCustomSelectionFg", false);
-    m_cmbSelFg->setCurrentItem(useCustomSelFg ? 1 : 0);
+    int selFgMode = settings.readNumEntry("/taskmgr/selFgMode", 1);
+    m_cmbSelFg->setCurrentItem(selFgMode);
     m_selFgColor = TQColor(settings.readEntry("/taskmgr/selectionFgColor", "#000000"));
     updateColorButton(m_btnSelFg, getButtonColor(m_btnSelFg));
 
@@ -785,7 +792,11 @@ void PreferencesDialog::onColorButtonClicked()
             *col = c;
             updateColorButton(btn, c);
             if (cmb) {
-                cmb->setCurrentItem(1);
+                if (cmb == m_cmbFg || cmb == m_cmbBg || cmb == m_cmbSelBg || cmb == m_cmbSelFg) {
+                    cmb->setCurrentItem(2); // Set to Custom (index 2)
+                } else {
+                    cmb->setCurrentItem(1); // Set to Custom (index 1) for other combos
+                }
             }
         }
     }
@@ -793,10 +804,10 @@ void PreferencesDialog::onColorButtonClicked()
 
 TQColor PreferencesDialog::getButtonColor(TQPushButton* btn)
 {
-    if (btn == m_btnFgColor) return (m_cmbFg->currentItem() == 1) ? m_fgColor : TQColor("#000000");
-    if (btn == m_btnBgColor) return (m_cmbBg->currentItem() == 1) ? m_bgColor : TQColor("#ffffff");
-    if (btn == m_btnSelBg) return (m_cmbSelBg->currentItem() == 1) ? m_selBgColor : TQColor("#91C9F7");
-    if (btn == m_btnSelFg) return (m_cmbSelFg->currentItem() == 1) ? m_selFgColor : TQColor("#000000");
+    if (btn == m_btnFgColor) return (m_cmbFg->currentItem() == 2) ? m_fgColor : TQColor("#000000");
+    if (btn == m_btnBgColor) return (m_cmbBg->currentItem() == 2) ? m_bgColor : TQColor("#ffffff");
+    if (btn == m_btnSelBg) return (m_cmbSelBg->currentItem() == 2) ? m_selBgColor : TQColor("#91C9F7");
+    if (btn == m_btnSelFg) return (m_cmbSelFg->currentItem() == 2) ? m_selFgColor : TQColor("#000000");
     if (btn == m_btnCpu) return (m_cmbCpu->currentItem() == 1) ? m_cpuColor : TQColor("#5A7A8A");
     if (btn == m_btnRam) return (m_cmbRam->currentItem() == 1) ? m_ramColor : TQColor("#8B12AE");
     if (btn == m_btnNetRecv) return (m_cmbNetRecv->currentItem() == 1) ? m_netRecvColor : TQColor("#0C6DA6");
@@ -891,10 +902,11 @@ void PreferencesDialog::onOkClicked()
     save_config();
 
     // Save custom colors
-    bool useCustomFg = (m_cmbFg->currentItem() == 1);
-    bool useCustomBg = (m_cmbBg->currentItem() == 1);
-    bool useCustomSelBg = (m_cmbSelBg->currentItem() == 1);
-    bool useCustomSelFg = (m_cmbSelFg->currentItem() == 1);
+    int fgMode = m_cmbFg->currentItem();
+    int bgMode = m_cmbBg->currentItem();
+    int selBgMode = m_cmbSelBg->currentItem();
+    int selFgMode = m_cmbSelFg->currentItem();
+
     bool useCustomCpu = (m_cmbCpu->currentItem() == 1);
     bool useCustomRam = (m_cmbRam->currentItem() == 1);
     bool useCustomNetRecv = (m_cmbNetRecv->currentItem() == 1);
@@ -914,14 +926,16 @@ void PreferencesDialog::onOkClicked()
 
     {
         TQSettings settings;
-        settings.writeEntry("/taskmgr/useCustomFg", useCustomFg);
+        settings.writeEntry("/taskmgr/fgMode", fgMode);
         settings.writeEntry("/taskmgr/foregroundColor", m_fgColor.name());
-        settings.writeEntry("/taskmgr/useCustomBg", useCustomBg);
+
+        settings.writeEntry("/taskmgr/bgMode", bgMode);
         settings.writeEntry("/taskmgr/backgroundColor", m_bgColor.name());
         
-        settings.writeEntry("/taskmgr/useCustomSelectionBg", useCustomSelBg);
+        settings.writeEntry("/taskmgr/selBgMode", selBgMode);
         settings.writeEntry("/taskmgr/selectionBgColor", m_selBgColor.name());
-        settings.writeEntry("/taskmgr/useCustomSelectionFg", useCustomSelFg);
+
+        settings.writeEntry("/taskmgr/selFgMode", selFgMode);
         settings.writeEntry("/taskmgr/selectionFgColor", m_selFgColor.name());
 
         settings.writeEntry("/taskmgr/useCustomCpuColor", useCustomCpu);
@@ -968,31 +982,35 @@ void PreferencesDialog::onOkClicked()
     // Apply palette immediately from dialog's values
     TQWidget dummy;
     TQPalette pal = dummy.palette();
-    if (useCustomFg) {
-        pal.setColor(TQColorGroup::Foreground, m_fgColor);
-        pal.setColor(TQColorGroup::Text, m_fgColor);
-        pal.setColor(TQColorGroup::ButtonText, m_fgColor);
+    if (fgMode != 0) {
+        TQColor fg = (fgMode == 1) ? TQColor("#000000") : m_fgColor;
+        pal.setColor(TQColorGroup::Foreground, fg);
+        pal.setColor(TQColorGroup::Text, fg);
+        pal.setColor(TQColorGroup::ButtonText, fg);
     }
-    if (useCustomBg) {
-        TQColor light = m_bgColor.light(150);
-        TQColor midlight = m_bgColor.light(115);
-        TQColor mid = m_bgColor.dark(115);
-        TQColor dark = m_bgColor.dark(150);
+    if (bgMode != 0) {
+        TQColor bg = (bgMode == 1) ? TQColor("#ffffff") : m_bgColor;
+        TQColor light = bg.light(150);
+        TQColor midlight = bg.light(115);
+        TQColor mid = bg.dark(115);
+        TQColor dark = bg.dark(150);
 
-        pal.setColor(TQColorGroup::Background, m_bgColor);
-        pal.setColor(TQColorGroup::Base, m_bgColor);
-        pal.setColor(TQColorGroup::Button, m_bgColor);
+        pal.setColor(TQColorGroup::Background, bg);
+        pal.setColor(TQColorGroup::Base, bg);
+        pal.setColor(TQColorGroup::Button, bg);
         pal.setColor(TQColorGroup::Light, light);
         pal.setColor(TQColorGroup::Midlight, midlight);
         pal.setColor(TQColorGroup::Mid, mid);
         pal.setColor(TQColorGroup::Dark, dark);
         pal.setColor(TQColorGroup::Shadow, TQt::black);
     }
-    if (useCustomSelBg) {
-        pal.setColor(TQColorGroup::Highlight, m_selBgColor);
+    if (selBgMode != 0) {
+        TQColor selBg = (selBgMode == 1) ? TQColor("#91C9F7") : m_selBgColor;
+        pal.setColor(TQColorGroup::Highlight, selBg);
     }
-    if (useCustomSelFg) {
-        pal.setColor(TQColorGroup::HighlightedText, m_selFgColor);
+    if (selFgMode != 0) {
+        TQColor selFg = (selFgMode == 1) ? TQColor("#000000") : m_selFgColor;
+        pal.setColor(TQColorGroup::HighlightedText, selFg);
     }
 
     TQApplication::setPalette(pal, true);
