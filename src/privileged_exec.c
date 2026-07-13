@@ -115,10 +115,48 @@ gboolean privileged_run_sudo_argv_with_password(const char *password,
     return run_sudo_wrapper_with_password(password, argv, exit_status, errmsg, errmsg_len);
 }
 
+static gboolean run_direct(char *const argv[],
+                           int *exit_status,
+                           char *errmsg, size_t errmsg_len)
+{
+    pid_t pid = fork();
+    if (pid == 0) {
+        execvp(argv[0], argv);
+        _exit(127);
+    }
+    if (pid < 0) {
+        if (errmsg && errmsg_len)
+            g_strlcpy(errmsg, "Failed to fork.", errmsg_len);
+        return FALSE;
+    }
+
+    int status = 0;
+    if (waitpid(pid, &status, 0) < 0) {
+        if (errmsg && errmsg_len)
+            g_strlcpy(errmsg, "Failed waiting for process.", errmsg_len);
+        return FALSE;
+    }
+
+    if (exit_status)
+        *exit_status = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
+
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        if (errmsg && errmsg_len)
+            g_strlcpy(errmsg, "Command failed.", errmsg_len);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 gboolean privileged_run_sudo_argv(char *const argv[],
                                   int *exit_status,
                                   char *errmsg, size_t errmsg_len)
 {
+    if (geteuid() == 0) {
+        return run_direct(argv, exit_status, errmsg, errmsg_len);
+    }
+
     if (!root_mode_is_active()) {
         if (errmsg && errmsg_len)
             g_strlcpy(errmsg, "Root mode is not active.", errmsg_len);

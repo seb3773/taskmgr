@@ -141,7 +141,7 @@ TaskMgrMainWindow::TaskMgrMainWindow(TQWidget* parent, const char* name)
     connect(m_tabWidget, SIGNAL(currentChanged(TQWidget*)),
             this,        SLOT(onTabChanged(TQWidget*)));
 
-    setIcon(appNormalWindowIcon());
+    applyRootModeUi();
 }
 
 void TaskMgrMainWindow::runInitialRefresh()
@@ -180,11 +180,7 @@ void TaskMgrMainWindow::createMenuBar()
     m_fileMenu->insertSeparator();
     m_fileMenu->insertItem("&Point and kill", this, SLOT(onMenuPointAndKill()));
 
-    if (getuid() != 0) {
-        m_rootModeMenuId = m_fileMenu->insertItem("Root &mode", this, SLOT(onMenuRootMode()));
-    } else {
-        m_rootModeMenuId = -1;
-    }
+    m_rootModeMenuId = m_fileMenu->insertItem("Root &mode", this, SLOT(onMenuRootMode()));
     m_fileMenu->insertItem("&Settings", this, SLOT(onMenuSettings()));
     m_fileMenu->insertItem("&Quit", this, SLOT(onMenuQuit()), TQKeySequence("Ctrl+W"));
 
@@ -501,19 +497,25 @@ void TaskMgrMainWindow::applyRootModeUi()
     if (root_mode_is_active()) {
         setIcon(appRootWindowIcon());
         setCaption("Task Manager - root");
-        if (m_fileMenu && m_rootModeMenuId >= 0)
-            m_fileMenu->changeItem(m_rootModeMenuId, "Exit root &mode");
+        if (m_fileMenu && m_rootModeMenuId != -1) {
+            m_fileMenu->removeItem(m_rootModeMenuId);
+            m_rootModeMenuId = -1;
+        }
     } else {
         setIcon(appNormalWindowIcon());
         setCaption("Task Manager");
-        if (m_fileMenu && m_rootModeMenuId >= 0)
-            m_fileMenu->changeItem(m_rootModeMenuId, "Root &mode");
+        if (m_fileMenu && m_rootModeMenuId == -1) {
+            m_rootModeMenuId = m_fileMenu->insertItem("Root &mode", this, SLOT(onMenuRootMode()), -1, 3);
+        }
     }
 }
 
 void TaskMgrMainWindow::onMenuRootMode()
 {
     if (root_mode_is_active()) {
+        if (geteuid() == 0) {
+            return;
+        }
         root_mode_deactivate();
         applyRootModeUi();
         return;

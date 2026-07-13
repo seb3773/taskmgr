@@ -100,11 +100,14 @@ static gboolean sudo_validate_password(const char *password)
 
 gboolean root_mode_is_active(void)
 {
-    return s_kind == ROOT_ELEVATION_FULL && s_pass_len > 0;
+    return (s_kind == ROOT_ELEVATION_FULL && s_pass_len > 0) || (geteuid() == 0);
 }
 
 RootElevationKind root_mode_kind(void)
 {
+    if (geteuid() == 0) {
+        return ROOT_ELEVATION_FULL;
+    }
     return s_kind;
 }
 
