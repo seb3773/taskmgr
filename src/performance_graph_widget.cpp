@@ -6,18 +6,16 @@
 #include <ntqpainter.h>
 #include <ntqsettings.h>
 #include <ntqstyle.h>
-#include <fstream>
+#include <stdio.h>
 
 static bool isDiskIostatsEnabled(const TQString& diskName)
 {
     TQString path = TQString("/sys/block/%1/queue/iostats").arg(diskName);
-    std::ifstream file(path.latin1());
-    if (!file.is_open()) return true;
-    int val = 1;
-    if (file >> val) {
-        return val != 0;
-    }
-    return true;
+    FILE* file = fopen(path.latin1(), "r");
+    if (!file) return true;
+    int val = fgetc(file);
+    fclose(file);
+    return val != '0';
 }
 
 PerformanceGraphWidget::PerformanceGraphWidget(TQWidget* parent)

@@ -13,7 +13,6 @@
 #include <ntqimage.h>
 #include <ntqmap.h>
 #include <ntqfile.h>
-#include <ntqtextstream.h>
 #include <ntqdir.h>
 #include <ntqstringlist.h>
 #include <stdlib.h>
@@ -203,10 +202,13 @@ static TQString readDesktopField(const TQString& desktopPath, const TQString& fi
         return TQString();
 
     TQString prefix = fieldName + "=";
-    TQTextStream stream(&file);
+    TQString content = TQString::fromUtf8(file.readAll());
+    file.close();
+
+    TQStringList lines = TQStringList::split('\n', content);
     bool inEntry = false;
-    while (!stream.atEnd()) {
-        TQString line = stream.readLine().stripWhiteSpace();
+    for (TQStringList::ConstIterator it = lines.begin(); it != lines.end(); ++it) {
+        TQString line = (*it).stripWhiteSpace();
         if (line.isEmpty() || line[0] == '#')
             continue;
         if (line == "[Desktop Entry]") {
@@ -401,10 +403,13 @@ TQString TdeIconLoader::readDesktopIconField(const TQString& desktopPath)
     if (!file.open(IO_ReadOnly))
         return TQString();
 
-    TQTextStream stream(&file);
+    TQString content = TQString::fromUtf8(file.readAll());
+    file.close();
+
+    TQStringList lines = TQStringList::split('\n', content);
     bool inEntry = false;
-    while (!stream.atEnd()) {
-        TQString line = stream.readLine().stripWhiteSpace();
+    for (TQStringList::ConstIterator it = lines.begin(); it != lines.end(); ++it) {
+        TQString line = (*it).stripWhiteSpace();
         if (line.isEmpty() || line[0] == '#')
             continue;
         if (line == "[Desktop Entry]") {

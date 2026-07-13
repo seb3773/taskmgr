@@ -19,11 +19,11 @@ if(TASKMGR_ASAN)
 endif()
 
 if(TASKMGR_AGGRESSIVE_FLAGS)
-    set(_TASKMGR_C_FLAGS "-O2 -flto=auto -fstrict-aliasing -ffunction-sections -fdata-sections -fno-ident -fno-plt -fomit-frame-pointer -fno-stack-protector -fno-math-errno -fvisibility=hidden -fmerge-all-constants -DNDEBUG")
+    set(_TASKMGR_C_FLAGS "-O2 -flto=auto -fstrict-aliasing -ffunction-sections -fdata-sections -fno-ident -fno-plt -fomit-frame-pointer -fno-stack-protector -fno-math-errno -fvisibility=hidden -fmerge-all-constants -fno-asynchronous-unwind-tables -DNDEBUG")
     set(_TASKMGR_CXX_EXTRA "-std=c++03 -fno-threadsafe-statics -fno-exceptions -fmerge-all-constants -Wno-deprecated-declarations -fpermissive")
     set(CMAKE_C_FLAGS "${_TASKMGR_C_FLAGS}")
     set(CMAKE_CXX_FLAGS "${_TASKMGR_C_FLAGS} ${_TASKMGR_CXX_EXTRA}")
-    set(CMAKE_EXE_LINKER_FLAGS "-Wl,-O1 -Wl,--gc-sections -Wl,--as-needed -flto=auto -s")
+    set(CMAKE_EXE_LINKER_FLAGS "-Wl,-O1 -Wl,--gc-sections -Wl,--as-needed -Wl,--build-id=none -Wl,-z,norelro -flto=auto -s")
     set(CMAKE_C_FLAGS_DEBUG "")
     set(CMAKE_C_FLAGS_RELEASE "")
     set(CMAKE_C_FLAGS_RELWITHDEBINFO "")
@@ -182,6 +182,11 @@ if(TASKMGR_AGGRESSIVE_FLAGS)
         src/taskmgr_system_tray.cpp
         src/tde_icon_loader.cpp
         src/compact_app_list.cpp
+        # MVC: non-perf-critical (services/startup tabs)
+        src/mvc/tqtmvctableview.cpp
+        src/mvc/tqtliststore.cpp
+        src/mvc/tqtabstractlistmodel.cpp
+        src/mvc/tqtabstractitemmodel.cpp
         PROPERTIES COMPILE_FLAGS "-Os"
     )
 endif()

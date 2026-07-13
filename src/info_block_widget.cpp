@@ -2,12 +2,8 @@
 #include <ntqlayout.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <algorithm>
-#include <cctype>
-#include <string>
+#include <mntent.h>
+#include <ntqstringlist.h>
 
 static TQString getGpuDriverName() {
     char path[512];
@@ -42,70 +38,66 @@ static TQString getGpuPciLocation() {
 
 static TQString getDiskFilesystemTypes(const TQString& diskName)
 {
-    std::ifstream mounts("/proc/mounts");
-    if (!mounts.is_open()) return "";
+    FILE* f = setmntent("/proc/mounts", "r");
+    if (!f) return "";
 
-    std::vector<std::string> orderedFs;
-    std::string rootFs = "";
+    TQStringList orderedFs;
+    TQString rootFs = "";
     bool hasRoot = false;
 
-    std::string line;
-    while (std::getline(mounts, line)) {
-        std::istringstream iss(line);
-        std::string dev, mountPoint, fsType;
-        if (!(iss >> dev >> mountPoint >> fsType)) continue;
+    struct mntent* mnt;
+    while ((mnt = getmntent(f)) != NULL) {
+        TQString dev(mnt->mnt_fsname);
+        TQString mountPoint(mnt->mnt_dir);
+        TQString fsType(mnt->mnt_type);
 
-        // Check if dev is in /dev/ and corresponds to a partition of this diskName
-        if (dev.rfind("/dev/", 0) == 0) {
-            std::string devName = dev.substr(5);
-            if (devName.rfind(diskName.latin1(), 0) == 0) {
-                // Keep only clean disk filesystem types
+        if (dev.startsWith("/dev/")) {
+            TQString devName = dev.mid(5);
+            if (devName.startsWith(diskName)) {
                 if (fsType == "ext4" || fsType == "btrfs" || fsType == "vfat" || fsType == "xfs" || 
                     fsType == "ntfs" || fsType == "exfat" || fsType == "f2fs" || fsType == "fuseblk" ||
                     fsType == "ext3" || fsType == "ext2" || fsType == "msdos") {
                     
-                    std::string mappedFs = fsType;
+                    TQString mappedFs = fsType;
                     if (fsType == "fuseblk") {
                         mappedFs = "NTFS";
                     } else if (fsType == "vfat") {
                         mappedFs = "FAT32";
                     } else {
-                        for (size_t i = 0; i < mappedFs.length(); ++i) {
-                            mappedFs[i] = std::toupper((unsigned char)mappedFs[i]);
-                        }
+                        mappedFs = fsType.upper();
                     }
 
                     if (mountPoint == "/") {
                         rootFs = mappedFs;
                         hasRoot = true;
                     } else {
-                        if (std::find(orderedFs.begin(), orderedFs.end(), mappedFs) == orderedFs.end()) {
-                            orderedFs.push_back(mappedFs);
+                        if (!orderedFs.contains(mappedFs)) {
+                            orderedFs.append(mappedFs);
                         }
                     }
                 }
             }
         }
     }
+    endmntent(f);
 
-    // Compile final unique list
-    std::vector<std::string> finalFs;
+    TQStringList finalFs;
     if (hasRoot) {
-        finalFs.push_back(rootFs);
+        finalFs.append(rootFs);
     }
-    for (size_t i = 0; i < orderedFs.size(); ++i) {
-        if (std::find(finalFs.begin(), finalFs.end(), orderedFs[i]) == finalFs.end()) {
-            finalFs.push_back(orderedFs[i]);
+    for (TQStringList::Iterator it = orderedFs.begin(); it != orderedFs.end(); ++it) {
+        if (!finalFs.contains(*it)) {
+            finalFs.append(*it);
         }
     }
 
-    if (finalFs.empty()) return "";
+    if (finalFs.isEmpty()) return "";
 
-    TQString res = TQString(finalFs[0].c_str());
-    if (finalFs.size() > 1) {
-        res += ", " + TQString(finalFs[1].c_str());
+    TQString res = finalFs[0];
+    if (finalFs.count() > 1) {
+        res += ", " + finalFs[1];
     }
-    if (finalFs.size() > 2) {
+    if (finalFs.count() > 2) {
         res += ", ...";
     }
     return res;
@@ -270,6 +262,7 @@ void InfoBlockWidget::setupCPU()
     addLeftMetric(1, 2, "Handles", "0");
 
     addLeftMetric(2, 0, "Up time", "0:00:00");
+    addLeftMetric(2, 1, "Temp", "N/A");
 
     // Right detailed Specs: 2 columns
     addRightSpec(0, "Base speed:", "0 MHz");
@@ -362,7 +355,7 @@ void InfoBlockWidget::refresh()
 
 void InfoBlockWidget::updateCPU()
 {
-    if (m_leftMetrics.size() < 6 || m_rightSpecs.size() < 10) return;
+    if (m_leftMetrics.size() < 7 || m_rightSpecs.size() < 10) return;
 
     CPUInfoData* cpu = get_cpu_info_data();
     cpu_info_bridge* info = bridge_get_cpu_info();
@@ -374,6 +367,13 @@ void InfoBlockWidget::updateCPU()
     m_leftMetrics[3].valueLabel->setText(TQString::number(cpu->thread_count));
     m_leftMetrics[4].valueLabel->setText(TQString::number(cpu->handle_count));
     m_leftMetrics[5].valueLabel->setText(TQString(cpu->uptime));
+
+    double temp = get_cpu_temperature();
+    if (temp >= 0.0) {
+        m_leftMetrics[6].valueLabel->setText(TQString::fromUtf8("%1 °C").arg(temp, 0, 'f', 0));
+    } else {
+        m_leftMetrics[6].valueLabel->setText("N/A");
+    }
 
     // Right Specs
     m_rightSpecs[0].valLabel->setText(TQString("%1 MHz").arg(info->base_mhz));
