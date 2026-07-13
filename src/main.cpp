@@ -44,6 +44,26 @@ static int run_privileged_helper(int argc, char **argv)
     return setpriority(PRIO_PROCESS, (id_t)pid, prio) == 0 ? 0 : 1;
 }
 
+class TaskMgrApplication : public KUniqueApplication {
+public:
+    TaskMgrApplication() : KUniqueApplication() {}
+    virtual int newInstance() {
+        TQWidget *w = mainWidget();
+        if (w) {
+            TaskMgrMainWindow *mw = static_cast<TaskMgrMainWindow*>(w);
+            guint16 flags = bridge_get_app_flags();
+            if (flags & APP_FLAG_WINDOW_HIDDEN) {
+                mw->toggleFromTray();
+            } else {
+                mw->showNormal();
+                mw->raise();
+                mw->setActiveWindow();
+            }
+        }
+        return KUniqueApplication::newInstance();
+    }
+};
+
 int main(int argc, char** argv) {
     int helper_rc = run_privileged_helper(argc, argv);
     if (helper_rc >= 0)
@@ -120,7 +140,7 @@ int main(int argc, char** argv) {
     init_network_manager();
     gpu_stats_init();
 
-    KUniqueApplication app;
+    TaskMgrApplication app;
 
     // Apply custom color theme if set
     applyAppPalette();

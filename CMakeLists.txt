@@ -231,4 +231,5 @@ target_link_libraries(taskmgr
     Threads::Threads
     /opt/trinity/lib/libtdecore.so
     /opt/trinity/lib/libtdeui.so
+    /opt/trinity/lib/libDCOP.so
 )
