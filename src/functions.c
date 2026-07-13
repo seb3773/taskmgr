@@ -5,6 +5,7 @@
 #include "common.h"
 #include <glib/gi18n.h>
 #include <fcntl.h>
+#include <time.h>
 #include <sys/syscall.h>
 #include <sys/sysinfo.h>
 #include <ctype.h>
@@ -1481,6 +1482,198 @@ long get_system_thread_count_fast(void) {
         return atol(slash + 1);
     }
     return 0;
+}
+
+static char to_lower_char(char c) {
+    if (c >= 'A' && c <= 'Z') return c + 32;
+    return c;
+}
+
+static void to_lower_str(char *dest, const char *src, size_t dest_size) {
+    size_t i = 0;
+    while (src[i] && i < dest_size - 1) {
+        dest[i] = to_lower_char(src[i]);
+        i++;
+    }
+    dest[i] = '\0';
+}
+
+static gboolean case_insensitive_contains(const char *haystack, const char *needle) {
+    if (!haystack || !needle) return FALSE;
+    char h_lower[256];
+    char n_lower[64];
+    to_lower_str(h_lower, haystack, sizeof(h_lower));
+    to_lower_str(n_lower, needle, sizeof(n_lower));
+    return strstr(h_lower, n_lower) != NULL;
+}
+
+static char cpu_temp_path[256] = "";
+static gboolean cpu_temp_path_detected = FALSE;
+static double cached_cpu_temp = -1.0;
+static time_t last_temp_read_time = 0;
+
+static void detect_cpu_temp_sensor(void) {
+    cpu_temp_path[0] = '\0';
+    cpu_temp_path_detected = TRUE;
+
+    // 1. Essayer avec hwmon (très précis pour les CPU physiques)
+    DIR *dir = opendir("/sys/class/hwmon");
+    if (dir) {
+        struct dirent *entry;
+        int best_score = -1;
+        while ((entry = readdir(dir)) != NULL) {
+            if (entry->d_name[0] == '.') continue;
+            char base_path[320];
+            snprintf(base_path, sizeof(base_path), "/sys/class/hwmon/%s", entry->d_name);
+
+            // Lire le nom du chip
+            char name_path[384];
+            snprintf(name_path, sizeof(name_path), "%s/name", base_path);
+            char chip_name[64] = "";
+            FILE *nf = fopen(name_path, "r");
+            if (nf) {
+                if (fgets(chip_name, sizeof(chip_name), nf)) {
+                    char *nl = strchr(chip_name, '\n');
+                    if (nl) *nl = '\0';
+                }
+                fclose(nf);
+            }
+
+            gboolean is_cpu_chip = (case_insensitive_contains(chip_name, "coretemp") ||
+                                    case_insensitive_contains(chip_name, "k10temp") ||
+                                    case_insensitive_contains(chip_name, "zenpower") ||
+                                    case_insensitive_contains(chip_name, "cpu") ||
+                                    case_insensitive_contains(chip_name, "soc_thermal") ||
+                                    case_insensitive_contains(chip_name, "x86_pkg_temp"));
+
+            // Parcourir les fichiers temp*_input du dossier
+            DIR *hw_dir = opendir(base_path);
+            if (hw_dir) {
+                struct dirent *hw_entry;
+                while ((hw_entry = readdir(hw_dir)) != NULL) {
+                    if (strncmp(hw_entry->d_name, "temp", 4) == 0 &&
+                        strstr(hw_entry->d_name, "_input") != NULL) {
+                        
+                        // Extraire l'index
+                        char idx[16] = "";
+                        const char *p = hw_entry->d_name + 4;
+                        int i = 0;
+                        while (*p >= '0' && *p <= '9' && i < 15) {
+                            idx[i++] = *p++;
+                        }
+                        idx[i] = '\0';
+
+                        // Lire le label
+                        char label_path[384];
+                        snprintf(label_path, sizeof(label_path), "%s/temp%s_label", base_path, idx);
+                        char label[64] = "";
+                        FILE *lf = fopen(label_path, "r");
+                        if (lf) {
+                            if (fgets(label, sizeof(label), lf)) {
+                                char *nl = strchr(label, '\n');
+                                if (nl) *nl = '\0';
+                            }
+                            fclose(lf);
+                        }
+
+                        int score = 0;
+                        if (is_cpu_chip) score += 20;
+                        if (case_insensitive_contains(label, "package") ||
+                            case_insensitive_contains(label, "tdie") ||
+                            case_insensitive_contains(label, "tctl") ||
+                            case_insensitive_contains(label, "cpu") ||
+                            case_insensitive_contains(label, "core")) {
+                            score += 10;
+                        }
+
+                        // Préférer "package" ou "tdie" qui représentent la T° globale
+                        if (case_insensitive_contains(label, "package") || case_insensitive_contains(label, "tdie")) {
+                            score += 10;
+                        }
+
+                        if (score > best_score) {
+                            best_score = score;
+                            snprintf(cpu_temp_path, sizeof(cpu_temp_path), "%s/%s", base_path, hw_entry->d_name);
+                        }
+                    }
+                }
+                closedir(hw_dir);
+            }
+        }
+        closedir(dir);
+    }
+
+    // 2. Si non trouvé dans hwmon, essayer les zones thermiques (virtuel / laptops / ARM)
+    if (cpu_temp_path[0] == '\0') {
+        DIR *tdir = opendir("/sys/class/thermal");
+        if (tdir) {
+            struct dirent *tentry;
+            int best_score = -1;
+            while ((tentry = readdir(tdir)) != NULL) {
+                if (strncmp(tentry->d_name, "thermal_zone", 12) == 0) {
+                    char type_path[320];
+                    snprintf(type_path, sizeof(type_path), "/sys/class/thermal/%s/type", tentry->d_name);
+                    char type_name[64] = "";
+                    FILE *tf = fopen(type_path, "r");
+                    if (tf) {
+                        if (fgets(type_name, sizeof(type_name), tf)) {
+                            char *nl = strchr(type_name, '\n');
+                            if (nl) *nl = '\0';
+                        }
+                        fclose(tf);
+                    }
+
+                    int score = 0;
+                    if (case_insensitive_contains(type_name, "x86_pkg_temp")) score += 30;
+                    else if (case_insensitive_contains(type_name, "cpu")) score += 20;
+                    else if (case_insensitive_contains(type_name, "acpitz")) score += 10;
+                    else if (case_insensitive_contains(type_name, "soc")) score += 5;
+
+                    if (score > best_score) {
+                        best_score = score;
+                        snprintf(cpu_temp_path, sizeof(cpu_temp_path), "/sys/class/thermal/%s/temp", tentry->d_name);
+                    }
+                }
+            }
+            closedir(tdir);
+        }
+    }
+}
+
+double get_cpu_temperature(void) {
+    if (!cpu_temp_path_detected) {
+        detect_cpu_temp_sensor();
+    }
+
+    if (cpu_temp_path[0] == '\0') {
+        return -1.0;
+    }
+
+    time_t now = time(NULL);
+    if (now - last_temp_read_time >= 3 || last_temp_read_time == 0) {
+        last_temp_read_time = now;
+        FILE *f = fopen(cpu_temp_path, "r");
+        if (f) {
+            char val_str[32];
+            if (fgets(val_str, sizeof(val_str), f)) {
+                double val = atof(val_str);
+                if (val > 1000.0) {
+                    cached_cpu_temp = val / 1000.0;
+                } else if (val > 0.0) {
+                    cached_cpu_temp = val;
+                } else {
+                    cached_cpu_temp = -1.0;
+                }
+            } else {
+                cached_cpu_temp = -1.0;
+            }
+            fclose(f);
+        } else {
+            cached_cpu_temp = -1.0;
+        }
+    }
+
+    return cached_cpu_temp;
 }
 
 // Nombre threads rapide sans détails (pour Performance)

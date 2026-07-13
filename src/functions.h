@@ -357,6 +357,7 @@ gfloat get_total_gpu_usage_fast(void);       // GPU total sans détail processus
 guint get_process_count_fast(void);          // Nombre processus sans détails
 guint get_thread_count_fast(void);           // Nombre threads sans détails
 long get_system_thread_count_fast(void);     // Nombre total de threads (rapide)
+double get_cpu_temperature(void);            // Température CPU globale
 gdouble get_cpu_usage(system_status *sys_stat);
 void update_performance_samples(gdouble cpu_usage, gdouble ram_usage, gdouble swap_usage, gdouble disk_usage, gdouble disk_read_kbs, gdouble disk_write_kbs);
 int detect_cpu_core_count(void);

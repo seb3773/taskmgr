@@ -5,6 +5,7 @@
 
 #include <glib/gi18n.h>
 #include <locale.h>
+#include <stdio.h>
 #include "utils.h"
 #include "fast_format.h"
 
