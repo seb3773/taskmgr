@@ -86,3 +86,5 @@ benchmark_optimizations
 benchmark_simd
 stamp-h1
 intltool.m4
+*.AppImage
+
