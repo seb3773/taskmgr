@@ -16,7 +16,8 @@ static const char *current_desktop = NULL;
 static memory_pool_t *string_pool = NULL;
 
 OPTIMIZE_SIZE
-static int add_entry(const char *name, const char *exec, const char *path, int enabled, const char *reason) {
+static int add_entry(const char *name, const char *exec, const char *path,
+                     int enabled, const char *reason, const char *tde_condition) {
     if (entry_count >= entry_capacity) {
         size_t new_capacity = entry_capacity ? entry_capacity * 2 : INITIAL_CAPACITY;
         AutostartEntry *new_entries = realloc(entries, new_capacity * sizeof(AutostartEntry));
@@ -49,9 +50,91 @@ static int add_entry(const char *name, const char *exec, const char *path, int e
         free(entries[entry_count].path);
         return MANAGER_ERROR_MEMORY;
     }
+    entries[entry_count].tde_condition = tde_condition ? strdup(tde_condition) : NULL;
     
     entry_count++;
     return MANAGER_OK;
+}
+
+/* Check TDE autostart condition by reading the user RC file.
+ * Format: "rcfile:section:key:default_value"
+ * Returns 1 if enabled, 0 if disabled. */
+OPTIMIZE_SIZE
+static int check_tde_condition(const char *condition, const char *home) {
+    if (!condition || !home) return 1;
+
+    /* Parse condition: rcfile:section:key:default_value */
+    char cond_copy[512];
+    strncpy(cond_copy, condition, sizeof(cond_copy) - 1);
+    cond_copy[sizeof(cond_copy) - 1] = '\0';
+
+    char *rcfile = cond_copy;
+    char *section = strchr(rcfile, ':');
+    if (!section) return 1;
+    *section++ = '\0';
+
+    char *key = strchr(section, ':');
+    if (!key) return 1;
+    *key++ = '\0';
+
+    char *default_value = strchr(key, ':');
+    if (!default_value) return 1;
+    *default_value++ = '\0';
+
+    /* Build path to user RC file: ~/.trinity/share/config/<rcfile> */
+    char rc_path[MAX_PATH];
+    snprintf(rc_path, sizeof(rc_path), "%s/.trinity/share/config/%s", home, rcfile);
+
+    FILE *fp = fopen(rc_path, "r");
+    if (!fp) {
+        /* No RC file → use default value from .desktop */
+        return (strcmp(default_value, "true") == 0) ? 1 : 0;
+    }
+
+    char line[MAX_LINE];
+    int in_section = 0;
+    int found = 0;
+    int result = -1;
+
+    /* If section is empty string, match any line outside sections */
+    int match_global = (section[0] == '\0');
+
+    while (fgets(line, sizeof(line), fp)) {
+        manager_trim_newline(line);
+        char *trimmed = manager_strip_whitespace(line);
+
+        if (trimmed[0] == '[') {
+            if (match_global) {
+                /* We were in global scope, now entering a section → stop */
+                if (found) break;
+            }
+            /* Check if this is our target section */
+            char section_header[256];
+            snprintf(section_header, sizeof(section_header), "[%s]", section);
+            in_section = (strcmp(trimmed, section_header) == 0);
+            continue;
+        }
+
+        if (match_global || in_section) {
+            char *eq = strchr(trimmed, '=');
+            if (!eq) continue;
+            *eq = '\0';
+            char *k = manager_strip_whitespace(trimmed);
+            char *v = manager_strip_whitespace(eq + 1);
+            if (strcmp(k, key) == 0) {
+                result = (strcmp(v, "true") == 0) ? 1 : 0;
+                found = 1;
+                if (!match_global) break;
+            }
+        }
+    }
+    fclose(fp);
+
+    if (!found) {
+        /* Key not found → use default value */
+        return (strcmp(default_value, "true") == 0) ? 1 : 0;
+    }
+    return result;
 }
 
 // Fonctions utilitaires remplacées par manager_common.h
@@ -123,6 +206,7 @@ void parse_desktop(const char *filepath, const char* home) {
     int in_entry = 0;
     int no_display = 0;
     char *try_exec = NULL;
+    char *tde_condition = NULL;
 
     while (fgets(line, sizeof(line), fp)) {
         manager_trim_newline(line);
@@ -160,6 +244,9 @@ void parse_desktop(const char *filepath, const char* home) {
             no_display = 1;
         } else if (strcmp(key, "X-GNOME-Autostart-enabled") == 0 && strcmp(value, "false") == 0) {
             gnome_enabled = 0;
+        } else if (strcmp(key, "X-TDE-autostart-condition") == 0) {
+            free(tde_condition);
+            tde_condition = strdup(value);
         } else if (strcmp(key, "OnlyShowIn") == 0 && current_desktop) {
             de_allowed = strstr(value, current_desktop) ? 1 : 0;
         } else if (strcmp(key, "NotShowIn") == 0 && current_desktop) {
@@ -172,23 +259,35 @@ void parse_desktop(const char *filepath, const char* home) {
         free(name); 
         free(exec); 
         free(try_exec);
+        free(tde_condition);
         return; 
     }
 
     int enabled = 1;
     char *reason = NULL;
-    
-    if (hidden) {
+
+    /* TDE condition takes priority for enabled/disabled state */
+    if (tde_condition) {
+        enabled = check_tde_condition(tde_condition, home);
+        if (!enabled) {
+            reason = malloc(256);
+            snprintf(reason, 256, "TDE condition disabled: %s", tde_condition);
+        }
+    } else if (hidden) {
         enabled = 0;
         reason = strdup("Hidden=true");
     } else if (!gnome_enabled) {
         enabled = 0;
         reason = strdup("X-GNOME-Autostart-enabled=false");
-    } else {
+    }
+    
+    /* Check exec availability (only if not already disabled) */
+    if (enabled) {
         if (try_exec && strlen(try_exec) > 0) {
             char *cmd = extract_command(try_exec);
             if (!find_in_path(cmd)) {
                 enabled = 0;
+                free(reason);
                 reason = malloc(256);
                 snprintf(reason, 256, "TryExec command not found: %s", cmd);
             }
@@ -199,12 +298,14 @@ void parse_desktop(const char *filepath, const char* home) {
             char *cmd = extract_command(exec);
             if (!find_in_path(cmd)) {
                 enabled = 0;
+                free(reason);
                 reason = malloc(256);
                 snprintf(reason, 256, "Exec command not found: %s", cmd);
             }
             free(cmd);
         } else if (!exec || strlen(exec) == 0) {
             enabled = 0;
+            free(reason);
             reason = strdup("No Exec command specified");
         }
     }
@@ -217,7 +318,7 @@ void parse_desktop(const char *filepath, const char* home) {
                strndup(filename, dot - filename) : strdup(filename);
     }
 
-    if (add_entry(name, exec, filepath, enabled, reason) != MANAGER_OK) {
+    if (add_entry(name, exec, filepath, enabled, reason, tde_condition) != MANAGER_OK) {
         // Log error but continue processing
     }
 
@@ -225,6 +326,7 @@ void parse_desktop(const char *filepath, const char* home) {
     free(exec); 
     free(try_exec);
     free(reason);
+    free(tde_condition);
 }
 
 void scan_directory(const char *dirpath, int parse_shell, const char* home) {
@@ -247,7 +349,7 @@ void scan_directory(const char *dirpath, int parse_shell, const char* home) {
             char *name = strdup(ent->d_name);
             char *dot = strrchr(name, '.');
             if (dot) *dot = 0;
-            if (add_entry(name, filepath, filepath, 1, NULL) != MANAGER_OK) {
+            if (add_entry(name, filepath, filepath, 1, NULL, NULL) != MANAGER_OK) {
                 // Log error but continue processing
             }
             free(name);
@@ -369,6 +471,13 @@ AutostartEntry* get_autostart_entries(size_t* count) {
     }
     free(copy);
 
+    /* Scan TDE system autostart directory */
+    char *tdedir = getenv("TDEDIR");
+    if (tdedir) {
+        snprintf(path, sizeof(path), "%s/share/autostart", tdedir);
+        scan_directory(path, 0, home);
+    }
+
     *count = entry_count;
     return entries;
 }
@@ -379,6 +488,7 @@ void free_autostart_entries(AutostartEntry* entries, size_t count) {
         if (entries[i].exec) free(entries[i].exec);
         free(entries[i].path);
         if (entries[i].reason) free(entries[i].reason);
+        if (entries[i].tde_condition) free(entries[i].tde_condition);
     }
     free(entries);
 }
@@ -542,6 +652,192 @@ static ToggleResult toggle_desktop_entry(const char *filepath, int enable,
     return TOGGLE_SUCCESS;
 }
 
+/* Toggle a TDE autostart entry by writing to the user RC file.
+ * TDE entries use X-TDE-autostart-condition=rcfile:section:key:default
+ * We write key=true/false in ~/.trinity/share/config/<rcfile> */
+OPTIMIZE_SIZE
+static ToggleResult toggle_tde_autostart_entry(const char *filepath,
+                                                const char *tde_condition,
+                                                int enable, char *message) {
+    if (!tde_condition) {
+        snprintf(message, 512, "No TDE condition for: %s", filepath);
+        return TOGGLE_ERROR_UNKNOWN;
+    }
+
+    /* Parse condition: rcfile:section:key:default_value */
+    char cond_copy[512];
+    strncpy(cond_copy, tde_condition, sizeof(cond_copy) - 1);
+    cond_copy[sizeof(cond_copy) - 1] = '\0';
+
+    char *rcfile = cond_copy;
+    char *section = strchr(rcfile, ':');
+    if (!section) {
+        snprintf(message, 512, "Invalid TDE condition format: %s", tde_condition);
+        return TOGGLE_ERROR_UNKNOWN;
+    }
+    *section++ = '\0';
+
+    char *key = strchr(section, ':');
+    if (!key) {
+        snprintf(message, 512, "Invalid TDE condition format: %s", tde_condition);
+        return TOGGLE_ERROR_UNKNOWN;
+    }
+    *key++ = '\0';
+
+    char *default_value = strchr(key, ':');
+    if (!default_value) {
+        snprintf(message, 512, "Invalid TDE condition format: %s", tde_condition);
+        return TOGGLE_ERROR_UNKNOWN;
+    }
+    *default_value++ = '\0';
+
+    char *home = getenv("HOME");
+    if (!home) {
+        snprintf(message, 512, "Cannot determine HOME directory");
+        return TOGGLE_ERROR_UNKNOWN;
+    }
+
+    /* Ensure ~/.trinity/share/config/ exists */
+    char config_dir[MAX_PATH];
+    snprintf(config_dir, sizeof(config_dir), "%s/.trinity/share/config", home);
+    /* mkdir -p equivalent: create each level if missing */
+    {
+        char tmp[MAX_PATH];
+        snprintf(tmp, sizeof(tmp), "%s/.trinity", home);
+        mkdir(tmp, 0755);
+        snprintf(tmp, sizeof(tmp), "%s/.trinity/share", home);
+        mkdir(tmp, 0755);
+        mkdir(config_dir, 0755);
+    }
+
+    char rc_path[MAX_PATH];
+    snprintf(rc_path, sizeof(rc_path), "%s/%s", config_dir, rcfile);
+
+    const char *new_value = enable ? "true" : "false";
+    int has_section = (section[0] != '\0');
+
+    /* Read existing RC file content */
+    FILE *fp = fopen(rc_path, "r");
+    char *file_content = NULL;
+    size_t file_size = 0;
+
+    if (fp) {
+        fseek(fp, 0, SEEK_END);
+        file_size = ftell(fp);
+        fseek(fp, 0, SEEK_SET);
+        file_content = malloc(file_size + 1);
+        if (file_content) {
+            fread(file_content, 1, file_size, fp);
+            file_content[file_size] = '\0';
+        }
+        fclose(fp);
+    }
+
+    /* Write the updated RC file */
+    char temp_path[MAX_PATH];
+    snprintf(temp_path, sizeof(temp_path), "%s.tmp", rc_path);
+    FILE *out = fopen(temp_path, "w");
+    if (!out) {
+        free(file_content);
+        snprintf(message, 512, "Cannot create temp file: %s", strerror(errno));
+        return TOGGLE_ERROR_WRITE_FAILED;
+    }
+
+    int key_written = 0;
+
+    if (file_content) {
+        /* Process existing content line by line */
+        char *line = file_content;
+        int in_target_section = !has_section; /* If no section, start matching immediately */
+        int section_found = !has_section;
+
+        while (line && *line) {
+            char *eol = strchr(line, '\n');
+            size_t line_len = eol ? (size_t)(eol - line) : strlen(line);
+            char line_buf[MAX_LINE];
+            if (line_len >= sizeof(line_buf)) line_len = sizeof(line_buf) - 1;
+            memcpy(line_buf, line, line_len);
+            line_buf[line_len] = '\0';
+
+            char *trimmed = manager_strip_whitespace(line_buf);
+
+            if (trimmed[0] == '[') {
+                /* Leaving current section: if we were in target and didn't write key yet, do it */
+                if (in_target_section && !key_written) {
+                    fprintf(out, "%s=%s\n", key, new_value);
+                    key_written = 1;
+                }
+                /* Check if entering target section */
+                if (has_section) {
+                    char section_header[256];
+                    snprintf(section_header, sizeof(section_header), "[%s]", section);
+                    in_target_section = (strcmp(trimmed, section_header) == 0);
+                    if (in_target_section) section_found = 1;
+                } else {
+                    in_target_section = 0;
+                }
+                fprintf(out, "%s\n", line_buf);
+            } else if (in_target_section) {
+                /* Check if this line has our key */
+                char *eq = strchr(trimmed, '=');
+                if (eq) {
+                    char key_buf[256];
+                    size_t klen = eq - trimmed;
+                    if (klen >= sizeof(key_buf)) klen = sizeof(key_buf) - 1;
+                    memcpy(key_buf, trimmed, klen);
+                    key_buf[klen] = '\0';
+                    char *k = manager_strip_whitespace(key_buf);
+                    if (strcmp(k, key) == 0) {
+                        fprintf(out, "%s=%s\n", key, new_value);
+                        key_written = 1;
+                    } else {
+                        fprintf(out, "%s\n", line_buf);
+                    }
+                } else {
+                    fprintf(out, "%s\n", line_buf);
+                }
+            } else {
+                fprintf(out, "%s\n", line_buf);
+            }
+
+            line = eol ? eol + 1 : NULL;
+        }
+
+        /* If we were still in the target section at EOF and haven't written the key */
+        if (in_target_section && !key_written) {
+            fprintf(out, "%s=%s\n", key, new_value);
+            key_written = 1;
+        }
+
+        /* If section was never found, append it */
+        if (!section_found) {
+            fprintf(out, "\n[%s]\n%s=%s\n", section, key, new_value);
+            key_written = 1;
+        }
+    } else {
+        /* No existing file: create from scratch */
+        if (has_section) {
+            fprintf(out, "[%s]\n%s=%s\n", section, key, new_value);
+        } else {
+            fprintf(out, "%s=%s\n", key, new_value);
+        }
+        key_written = 1;
+    }
+
+    free(file_content);
+    fclose(out);
+
+    if (rename(temp_path, rc_path) != 0) {
+        snprintf(message, 512, "Cannot replace RC file %s: %s", rc_path, strerror(errno));
+        unlink(temp_path);
+        return TOGGLE_ERROR_WRITE_FAILED;
+    }
+
+    snprintf(message, 512, "Successfully %s TDE entry: %s",
+             enable ? "enabled" : "disabled", filepath);
+    return TOGGLE_SUCCESS;
+}
+
 ToggleResult toggle_autostart_entry(const char *filepath, int enable, char *message) {
     return toggle_autostart_entry_with_password(NULL, filepath, enable, message);
 }
@@ -565,6 +861,14 @@ ToggleResult toggle_autostart_entry_with_password(const char *password,
     
     // Déterminer le type de fichier et appeler la bonne fonction
     if (len > 8 && manager_has_suffix(filepath, ".desktop")) {
+        /* Check if this is a TDE entry with X-TDE-autostart-condition */
+        for (size_t i = 0; i < entry_count; i++) {
+            if (entries[i].path && strcmp(entries[i].path, filepath) == 0
+                && entries[i].tde_condition) {
+                return toggle_tde_autostart_entry(filepath, entries[i].tde_condition,
+                                                  enable, message);
+            }
+        }
         return toggle_desktop_entry(filepath, enable, message, password);
     } else {
         snprintf(message, 512, "Unsupported file type: %s (only .desktop files are supported)", filepath);

@@ -13,6 +13,7 @@ typedef struct {
     char *path;
     int enabled;
     char *reason;
+    char *tde_condition;  /* X-TDE-autostart-condition value, NULL if not TDE */
 } AutostartEntry;
 
 typedef enum {
