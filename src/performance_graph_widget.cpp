@@ -350,7 +350,11 @@ void PerformanceGraphWidget::drawSingleGraph(TQPainter& p, const TQRect& r, Grap
             fillColor = m_cpuFillColor;
             break;
         case GraphTypeRAM:
-            data_int1 = (const int*)perf->ram_samples;
+            if (isSubCore) {
+                data_gint16 = (const gint16*)perf->swap_samples;
+            } else {
+                data_int1 = (const int*)perf->ram_samples;
+            }
             strokeColor = m_ramColor;
             fillColor = m_ramFillColor;
             break;
