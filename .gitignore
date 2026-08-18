@@ -87,4 +87,8 @@ benchmark_simd
 stamp-h1
 intltool.m4
 *.AppImage
+*.qsi
+qsi_setup/deb_packages/
+qsi_setup/output/
+qsi_setup/qinstaller
 

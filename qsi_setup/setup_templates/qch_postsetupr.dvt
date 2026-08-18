@@ -1,0 +1,20 @@
+#!/bin/sh
+# Hook root exécuté à la fin de l'installation du .qsi
+set -e
+
+# Recharger la base de services et menus Trinity
+if [ -x /opt/trinity/bin/tdebuildsycoca ]; then
+    /opt/trinity/bin/tdebuildsycoca >/dev/null 2>&1 || true
+fi
+
+# Mettre à jour le cache d'icônes
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -f -t /usr/share/icons/hicolor >/dev/null 2>&1 || true
+fi
+
+# Mettre à jour la base de données desktop
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database -q /usr/share/applications >/dev/null 2>&1 || true
+fi
+
+exit 0
