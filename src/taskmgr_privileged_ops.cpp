@@ -55,6 +55,11 @@ struct EditServiceCtx {
     gboolean ok;
 };
 
+struct DeleteCtx {
+    const char *filepath;
+    gboolean ok;
+};
+
 static gboolean runEphemeral(TQWidget *parent, const TQString &prompt,
                              EphemeralActionFn fn, void *ctx)
 {
@@ -236,6 +241,40 @@ gboolean TaskmgrPrivilegedOps::editAutostart(TQWidget *parent, const char *filep
     if (runEphemeral(parent,
                      TQString("Administrator password required to edit this startup entry."),
                      editServiceWithPassword, &ctx))
+        return ctx.ok;
+
+    return FALSE;
+}
+
+static gboolean deleteWithPassword(const char *password, void *v)
+{
+    DeleteCtx *c = (DeleteCtx *)v;
+    c->ok = privileged_delete_file_with_password(password, c->filepath);
+    return c->ok;
+}
+
+gboolean TaskmgrPrivilegedOps::deleteAutostart(TQWidget *parent, const char *filepath)
+{
+    if (!filepath || !*filepath)
+        return FALSE;
+
+    if (root_mode_is_active()) {
+        if (geteuid() == 0)
+            return unlink(filepath) == 0;
+        return privileged_delete_file(filepath);
+    }
+
+    if (!taskmgr_autostart_needs_elevation(filepath)) {
+        if (unlink(filepath) == 0)
+            return TRUE;
+        if (errno != EACCES && errno != EPERM)
+            return FALSE;
+    }
+
+    DeleteCtx ctx = { filepath, FALSE };
+    if (runEphemeral(parent,
+                     TQString("Administrator password required to delete this startup entry."),
+                     deleteWithPassword, &ctx))
         return ctx.ok;
 
     return FALSE;

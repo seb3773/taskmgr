@@ -241,14 +241,12 @@ void StartupTab::onContextDelete()
 
     if (response == TQMessageBox::Yes) {
         if (!path.isEmpty()) {
-            if (unlink(path.latin1()) == 0) {
+            if (TaskmgrPrivilegedOps::deleteAutostart(this, path.latin1())) {
                 m_store->removeRow(m_selectedRow);
                 m_selectedRow = -1;
             } else {
                 TQMessageBox::critical(this, "Error",
-                    TQString("Failed to delete file:\n%1\n\nReason: %2")
-                    .arg(path)
-                    .arg(strerror(errno)));
+                    TQString("Failed to delete startup file:\n%1").arg(path));
             }
         }
     }

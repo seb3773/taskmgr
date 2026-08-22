@@ -70,8 +70,22 @@ gboolean taskmgr_autostart_needs_elevation(const char *filepath)
     if (root_mode_is_active())
         return FALSE;
 
-    if (access(filepath, W_OK) == 0)
-        return FALSE;
+    /* Check if the file itself is writable */
+    if (access(filepath, W_OK) != 0)
+        return TRUE;
 
-    return TRUE;
+    /* Also check if parent directory is writable (needed for deletion/creation) */
+    char dir[1024];
+    g_strlcpy(dir, filepath, sizeof(dir));
+    char *slash = strrchr(dir, '/');
+    if (slash) {
+        if (slash == dir)
+            *(slash + 1) = '\0';
+        else
+            *slash = '\0';
+        if (access(dir, W_OK) != 0)
+            return TRUE;
+    }
+
+    return FALSE;
 }

@@ -39,6 +39,9 @@ gboolean privileged_disconnect_user_sessions_with_password(const char *password,
 gboolean privileged_move_file(const char *src, const char *dst);
 gboolean privileged_move_file_with_password(const char *password,
                                             const char *src, const char *dst);
+gboolean privileged_delete_file(const char *filepath);
+gboolean privileged_delete_file_with_password(const char *password,
+                                              const char *filepath);
 
 #ifdef __cplusplus
 }

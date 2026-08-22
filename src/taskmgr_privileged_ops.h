@@ -23,6 +23,7 @@ public:
     static gboolean disconnectUser(TQWidget* parent, const char* username);
     static gboolean editService(TQWidget* parent, const char* serviceName);
     static gboolean editAutostart(TQWidget* parent, const char* filepath);
+    static gboolean deleteAutostart(TQWidget* parent, const char* filepath);
     static ToggleResult toggleAutostart(TQWidget* parent, const char* filepath,
                                         int enable, char* message);
 };

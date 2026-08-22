@@ -102,7 +102,7 @@ If you prefer to compile manually:
 The compiled binary will be generated at `build/taskmgr`.
 
 ### Building the Debian Package (.deb)
-To generate a Debian package (`taskmgr_1.0_<arch>.deb`) containing the binary, the desktop entry, and all application icons:
+To generate a Debian package (`taskmgr_1.1_<arch>.deb`) containing the binary, the desktop entry, and all application icons:
 ```bash
 ./build_deb.sh
 ```

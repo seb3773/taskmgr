@@ -92,7 +92,7 @@ fi
 # Create Desktop entry at root of AppDir and usr/share/applications
 cat > "$APPDIR/taskmgr.desktop" <<EOF
 [Desktop Entry]
-Version=1.0
+Version=1.1
 Name=Task Manager
 GenericName=System Monitor
 Comment=Monitor and control running processes and system resources

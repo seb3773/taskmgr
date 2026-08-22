@@ -12,7 +12,7 @@ OUT_DIR="$QSI_DIR/output"
 TEMPLATES_DIR="$QSI_DIR/setup_templates"
 
 # 1. Détection des paramètres du projet
-APP_VERSION="${1:-1.0}"
+APP_VERSION="${1:-1.1}"
 
 echo "=================================================="
 echo " Q4OS .qsi Installer Universal Builder"

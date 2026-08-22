@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
     GraphColors::load();
     GaugeColors::load();
 
-    TDEAboutData aboutData("taskmgr", I18N_NOOP("Task Manager"), "1.0",
+    TDEAboutData aboutData("taskmgr", I18N_NOOP("Task Manager"), "1.1",
                            I18N_NOOP("Task Manager"), TDEAboutData::License_GPL);
     TDECmdLineArgs::init(argc, argv, &aboutData);
     KUniqueApplication::addCmdLineOptions();

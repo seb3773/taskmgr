@@ -1,0 +1,38 @@
+#***q4os*setup*config*header*do*not*delete*it***#
+# Configuration de base d'un installeur Q4OS (.qsi)
+
+# Nom exact du paquet Debian
+PK_NAME="mon-application"
+
+# Titre descriptif affiché dans la fenêtre de l'installeur
+APPNAME_DESC="Mon Application"
+
+# Nom de l'icône de l'application
+APP_ICON="mon-application"
+
+# Version de l'application
+PK_VERS="1.0.0"
+
+# Méthode d'installation (2 = APT local avec résolution de dépendances)
+SETUP_TYPE="2"
+
+# Paquet Debian à installer
+INST_DEBS="mon-application"
+
+# Chemins des répertoires (Généralement résolus en absolu par build_qsi.sh)
+DEBPCKS_DIR="deb_packages"
+TEMPLATES_DIR="setup_templates"
+OUT_DIR="output"
+
+# Raccourcis et intégration (1 = oui, 0 = non)
+APPLNK_ENTRY="1"     # 1 pour une app classique, 0 pour une applet de panneau
+DESKTOP_ENTRY="0"    # 1 pour créer un raccourci bureau, 0 sinon
+MENU_ENTRY="1"       # 1 pour créer une entrée dans le menu démarrer, 0 sinon
+
+# Distributions et versions cibles autorisées
+DSTR_BASE="debian;ubuntu"
+DSTR_EDTN="bullseye;bookworm;trixie;jammy;noble"
+Q4VER_MIN="4.0"
+
+# Vérification connexion Internet (0 = désactivé car paquet local complet)
+CHK_INET="0"

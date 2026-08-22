@@ -357,3 +357,26 @@ gboolean privileged_move_file_with_password(const char *password,
 {
     return privileged_move_file_impl(password, src, dst);
 }
+
+static gboolean privileged_delete_file_impl(const char *password,
+                                            const char *filepath)
+{
+    if (!filepath || !*filepath)
+        return FALSE;
+
+    char *argv[] = {"rm", "-f", (char *)filepath, NULL};
+    if (password)
+        return privileged_run_sudo_argv_with_password(password, argv, NULL, NULL, 0);
+    return privileged_run_sudo_argv(argv, NULL, NULL, 0);
+}
+
+gboolean privileged_delete_file(const char *filepath)
+{
+    return privileged_delete_file_impl(NULL, filepath);
+}
+
+gboolean privileged_delete_file_with_password(const char *password,
+                                              const char *filepath)
+{
+    return privileged_delete_file_impl(password, filepath);
+}
