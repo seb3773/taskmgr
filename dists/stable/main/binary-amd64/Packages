@@ -1,0 +1,19 @@
+Package: taskmgr
+Version: 1.1
+Architecture: amd64
+Maintainer: seb3773
+Installed-Size: 664
+Depends: libtqt3-mt-trinity (>= 4:14.0.0) | libtqt3-mt, libglib2.0-0
+Filename: pool/main/t/taskmgr/taskmgr_1.1_amd64.deb
+Size: 190264
+MD5sum: c874d713560f69c8292107034e6c9865
+SHA1: ff54bd32c601851b23f22fe2b81a6ca9771948db
+SHA256: f24b858e6b44b09bc01c57647b519362eb9a1312ac4dbeb5c93efae55949dacf
+Section: admin
+Priority: optional
+Description: Lightweight process and resource monitor for Trinity Desktop
+ A native TQt3/TDE Linux task manager featuring a multi-tab view similar
+ to Windows 10 Task Manager. Provides detailed process control, CPU/RAM/GPU
+ monitoring graphs, network/disk throughput meters, services controls, and
+ startup application management. Fully optimized for low-resource environments.
+
