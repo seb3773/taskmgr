@@ -60,7 +60,36 @@ The build system is tuned for minimal footprint, yielding a fully-featured deskt
 
 ---
 
-## Build and Run Instructions
+## 🚀 Installation & Repository
+
+### Method 1: APT Repository (Recommended for Automated Updates)
+To add the official repository and receive regular automatic updates on Debian, Q4OS, Ubuntu, and derivatives:
+```bash
+echo "deb [trusted=yes] https://seb3773.github.io/taskmgr/ stable main" | sudo tee /etc/apt/sources.list.d/taskmgr.list
+sudo apt update
+sudo apt install taskmgr
+```
+
+### Method 2: Q4OS 1-Click Installer (`.qsi`)
+Download and run `setup_taskmgr_1.1.qsi` (or double-click it in the file manager).
+*The Q4OS installer automatically configures the APT repository during setup for seamless future updates.*
+
+### Method 3: Portable AppImage (`.AppImage`)
+Download the standalone AppImage, make it executable, and run on any modern 64-bit Linux distribution:
+```bash
+chmod +x taskmgr-x86_64.AppImage
+./taskmgr-x86_64.AppImage
+```
+
+### Method 4: Direct Debian Package (`.deb`)
+Download `taskmgr_1.1_amd64.deb` and install via apt:
+```bash
+sudo apt install ./taskmgr_1.1_amd64.deb
+```
+
+---
+
+## 🛠️ Build from Source
 
 ### Dependencies
 
@@ -72,48 +101,22 @@ Ensure the following libraries are installed on your Linux system:
 - **CMake** (version >= 3.10)
 
 On Debian-based systems:
-```bash
-sudo apt-get install cmake build-essential libtqt3-mt-dev libglib2.0-dev libsystemd-dev libx11-dev libpci-dev
-```
+- `tqt3-dev-tools`, `libtqt3-mt-dev` (or Trinity equivalents `libtqt3-mt-trinity-dev`)
+- `tdelibs14-trinity-dev` (optional for TDE integration)
+- `cmake` (>= 3.10), `make`, `gcc`, `g++`, `pkg-config`, `libglib2.0-dev`
 
-### Building the Project
-
-You can compile the project either manually using CMake or automatically via the provided build scripts.
-
-#### Option A: Quick Build (Recommended)
-We provide a helper script that automates the build process in Release mode and automatically applies size optimizations (using `sstrip` if available on the system):
+### Automated Build
+Run the provided automated build script:
 ```bash
 ./build.sh
 ```
-The optimized executable will be generated at `build/taskmgr`.
+The optimized binary will be generated at `build/taskmgr`.
 
-#### Option B: Manual CMake Build
-If you prefer to compile manually:
-1. Create a build directory:
-   ```bash
-   mkdir -p build
-   cd build
-   ```
-2. Generate the build files and compile:
-   ```bash
-   cmake -DCMAKE_BUILD_TYPE=Release ..
-   make -j$(nproc)
-   ```
-The compiled binary will be generated at `build/taskmgr`.
-
-### Building the Debian Package (.deb)
-To generate a Debian package (`taskmgr_1.1_<arch>.deb`) containing the binary, the desktop entry, and all application icons:
-```bash
-./build_deb.sh
-```
-This script will stage the package filesystem, strip the binary, generate dependencies metadata, and build the final `.deb` package at the root directory.
-
-### Running
-
-To launch the task manager:
-```bash
-./build/taskmgr
-```
+### Generating Release Packages
+* **Debian Package:** `./build_deb.sh`
+* **Q4OS Installer:** `./build_qsi.sh`
+* **Portable AppImage:** `./build_appimage.sh`
+* **Update APT Repository (GitHub Pages):** `./update_apt_repo.sh`
 
 ---
 

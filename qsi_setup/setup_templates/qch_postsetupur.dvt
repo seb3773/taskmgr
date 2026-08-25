@@ -1,0 +1,10 @@
+#!/bin/sh
+# Q4OS post-uninstall root hook for Taskmgr
+set -e
+
+# Clean up APT repository entry on uninstall
+if [ -f /etc/apt/sources.list.d/taskmgr.list ]; then
+    rm -f /etc/apt/sources.list.d/taskmgr.list
+fi
+
+exit 0
