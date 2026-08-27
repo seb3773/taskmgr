@@ -17,3 +17,22 @@ Description: Lightweight process and resource monitor for Trinity Desktop
  monitoring graphs, network/disk throughput meters, services controls, and
  startup application management. Fully optimized for low-resource environments.
 
+Package: taskmgr
+Version: 1.2
+Architecture: amd64
+Maintainer: seb3773
+Installed-Size: 688
+Depends: libtqt3-mt-trinity (>= 4:14.0.0) | libtqt3-mt, libglib2.0-0
+Filename: pool/main/t/taskmgr/taskmgr_1.2_amd64.deb
+Size: 199832
+MD5sum: e91a2ef0b37dfbf43113cb34c800b181
+SHA1: 91f08fba77138540e09371854baec39a8b2a193b
+SHA256: a4eab96b3c7de8d3859542c2d54ce58f409df27ebf50cb3cac63722402decb79
+Section: admin
+Priority: optional
+Description: Lightweight process and resource monitor for Trinity Desktop
+ A native TQt3/TDE Linux task manager featuring a multi-tab view similar
+ to Windows 10 Task Manager. Provides detailed process control, CPU/RAM/GPU
+ monitoring graphs, network/disk throughput meters, services controls, and
+ startup application management. Fully optimized for low-resource environments.
+
