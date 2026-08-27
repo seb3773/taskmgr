@@ -279,3 +279,91 @@ gboolean TaskmgrPrivilegedOps::deleteAutostart(TQWidget *parent, const char *fil
 
     return FALSE;
 }
+
+struct CronToggleCtx {
+    const CronEntry *entry;
+    int enable;
+    char *errmsg;
+    size_t errmsg_len;
+    int ret;
+};
+
+struct CronDeleteCtx {
+    const CronEntry *entry;
+    char *errmsg;
+    size_t errmsg_len;
+    int ret;
+};
+
+static gboolean cronToggleWithPassword(const char *password, void *v)
+{
+    CronToggleCtx *c = (CronToggleCtx *)v;
+    c->ret = toggle_cron_entry_with_password(password, c->entry, c->enable, c->errmsg, c->errmsg_len);
+    return c->ret == 0;
+}
+
+static gboolean cronDeleteWithPassword(const char *password, void *v)
+{
+    CronDeleteCtx *c = (CronDeleteCtx *)v;
+    c->ret = delete_cron_entry_with_password(password, c->entry, c->errmsg, c->errmsg_len);
+    return c->ret == 0;
+}
+
+int TaskmgrPrivilegedOps::toggleCronEntry(TQWidget *parent, const CronEntry *entry,
+                                          int enable, char *errmsg, size_t errmsg_len)
+{
+    if (!entry) return -1;
+
+    if (root_mode_is_active() || (entry->source_path && access(entry->source_path, W_OK) == 0)) {
+        int ret = toggle_cron_entry(entry, enable, errmsg, errmsg_len);
+        if (ret == 0) return 0;
+        if (root_mode_is_active()) return ret;
+    }
+
+    CronToggleCtx ctx = { entry, enable, errmsg, errmsg_len, -1 };
+    if (runEphemeral(parent,
+                     TQString("Administrator password required to modify scheduled tasks."),
+                     cronToggleWithPassword, &ctx)) {
+        return ctx.ret;
+    }
+
+    return -1;
+}
+
+int TaskmgrPrivilegedOps::deleteCronEntry(TQWidget *parent, const CronEntry *entry,
+                                          char *errmsg, size_t errmsg_len)
+{
+    if (!entry) return -1;
+
+    if (root_mode_is_active() || (entry->source_path && access(entry->source_path, W_OK) == 0)) {
+        int ret = delete_cron_entry(entry, errmsg, errmsg_len);
+        if (ret == 0) return 0;
+        if (root_mode_is_active()) return ret;
+    }
+
+    CronDeleteCtx ctx = { entry, errmsg, errmsg_len, -1 };
+    if (runEphemeral(parent,
+                     TQString("Administrator password required to delete this scheduled task."),
+                     cronDeleteWithPassword, &ctx)) {
+        return ctx.ret;
+    }
+
+    return -1;
+}
+
+gboolean TaskmgrPrivilegedOps::editCronFile(TQWidget *parent, const char *filepath)
+{
+    if (!filepath || !*filepath)
+        return FALSE;
+
+    if (root_mode_is_active() || access(filepath, W_OK) == 0)
+        return taskmgr_launch_edit_file(filepath);
+
+    EditServiceCtx ctx = { filepath, FALSE };
+    if (runEphemeral(parent,
+                     TQString("Administrator password required to edit this scheduled task file."),
+                     editServiceWithPassword, &ctx))
+        return ctx.ok;
+
+    return FALSE;
+}

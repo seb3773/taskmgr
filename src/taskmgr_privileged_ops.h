@@ -10,6 +10,7 @@
 
 #include "service_manager.h"
 #include "autostart_manager.h"
+#include "cron_manager.h"
 
 class TQWidget;
 class TQString;
@@ -26,6 +27,11 @@ public:
     static gboolean deleteAutostart(TQWidget* parent, const char* filepath);
     static ToggleResult toggleAutostart(TQWidget* parent, const char* filepath,
                                         int enable, char* message);
+    static int toggleCronEntry(TQWidget* parent, const CronEntry* entry,
+                               int enable, char* errmsg, size_t errmsg_len);
+    static int deleteCronEntry(TQWidget* parent, const CronEntry* entry,
+                               char* errmsg, size_t errmsg_len);
+    static gboolean editCronFile(TQWidget* parent, const char* filepath);
 };
 
 #endif /* TASKMGR_PRIVILEGED_OPS_H */

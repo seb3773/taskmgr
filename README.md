@@ -11,6 +11,7 @@ A high-performance, lightweight, and modern system task manager designed for the
 - **Startup Tab**: Lists desktop auto-start applications with quick enable/disable toggle options.
 - **Users Tab**: Monitors logged-in users with session resource allocations and disconnect capabilities.
 - **Services Tab**: Integrated systemd system services manager with start, stop, restart, enable, and disable controls.
+- **Scheduled Tasks Tab**: Complete cron jobs and scheduled tasks inspector and manager (user crontabs, `/etc/crontab`, `/etc/cron.d/`, `/etc/cron.{hourly,daily,weekly,monthly}/`). Displays human-readable schedules, status indicators, and enables live Enable/Disable, instant "Run Now" execution, in-place deletion, and seamless user crontab editing with live save synchronization.
 - **Frictionless Privileged Actions**: Action prompts trigger password-authenticated operations (via su/PAM credentials helper) without requiring the entire application to run as root.
 - **System Tray Integration**: Interactive tray icon showing dynamic live CPU usage level.
 
@@ -71,7 +72,7 @@ sudo apt install taskmgr
 ```
 
 ### Method 2: Q4OS 1-Click Installer (`.qsi`)
-Download and run `setup_taskmgr_1.1.qsi` (or double-click it in the file manager).
+Download and run `setup_taskmgr_1.2.qsi` (or double-click it in the file manager).
 *The Q4OS installer automatically configures the APT repository during setup for seamless future updates.*
 
 ### Method 3: Portable AppImage (`.AppImage`)
@@ -82,9 +83,9 @@ chmod +x taskmgr-x86_64.AppImage
 ```
 
 ### Method 4: Direct Debian Package (`.deb`)
-Download `taskmgr_1.1_amd64.deb` and install via apt:
+Download `taskmgr_1.2_amd64.deb` and install via apt:
 ```bash
-sudo apt install ./taskmgr_1.1_amd64.deb
+sudo apt install ./taskmgr_1.2_amd64.deb
 ```
 
 ---

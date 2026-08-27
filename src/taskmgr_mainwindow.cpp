@@ -16,6 +16,7 @@
 #include "root_password_dialog.h"
 #include "root_credential_vault.h"
 #include "tde_icon_loader.h"
+#include "scheduled_tab.h"
 
 #include <ntqapplication.h>
 #include <ntqmessagebox.h>
@@ -122,11 +123,20 @@ TaskMgrMainWindow::TaskMgrMainWindow(TQWidget* parent, const char* name)
     m_servicesTabContent = new ServicesTab(m_servicesTab);
     m_servicesLayout->addWidget(m_servicesTabContent, 1);
 
+    /* ---- Scheduled Tab ---- */
+    m_scheduledTab = new TQWidget(m_tabWidget);
+    m_scheduledLayout = new TQVBoxLayout(m_scheduledTab, 4, 0);
+    m_scheduledGauges = new SystemInfoGauges(m_scheduledTab);
+    m_scheduledLayout->addWidget(m_scheduledGauges);
+    m_scheduledTabContent = new ScheduledTab(m_scheduledTab);
+    m_scheduledLayout->addWidget(m_scheduledTabContent, 1);
+
     m_tabWidget->addTab(m_processesTab,   "  Processes  ");
     m_tabWidget->addTab(m_performanceTab, "  Performance  ");
     m_tabWidget->addTab(m_startupTab,     "  Startup  ");
     m_tabWidget->addTab(m_usersTab,       "  Users  ");
     m_tabWidget->addTab(m_servicesTab,    "  Services  ");
+    m_tabWidget->addTab(m_scheduledTab,   "  Scheduled  ");
 
     createMenuBar();
 
@@ -301,12 +311,14 @@ void TaskMgrMainWindow::updateGaugesVisibility()
         m_startupGauges->show();
         m_usersGauges->show();
         m_servicesGauges->show();
+        m_scheduledGauges->show();
     } else {
         m_processesGauges->hide();
         m_processesHeaderStats->show();
         m_startupGauges->hide();
         m_usersGauges->hide();
         m_servicesGauges->hide();
+        m_scheduledGauges->hide();
     }
 }
 
@@ -363,6 +375,9 @@ void TaskMgrMainWindow::updateSystemMetrics()
     } else if (curPage == m_servicesTab) {
         m_servicesGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
                                        (double)swap_used, swap_total_gb);
+    } else if (curPage == m_scheduledTab) {
+        m_scheduledGauges->updateValues(cpu_pct, cpu_ghz, (double)memory_used, mem_total_gb,
+                                         (double)swap_used, swap_total_gb);
     }
 
     updateSystemTray(cpu_pct);
@@ -402,6 +417,8 @@ void TaskMgrMainWindow::onTabChanged(TQWidget* widget)
         m_usersTabContent->refresh();
     } else if (widget == m_servicesTab) {
         m_servicesTabContent->refresh();
+    } else if (widget == m_scheduledTab) {
+        m_scheduledTabContent->refresh();
     }
 
     // Immediately update gauges layout and values for the newly selected tab
@@ -508,6 +525,10 @@ void TaskMgrMainWindow::applyRootModeUi()
             m_rootModeMenuId = m_fileMenu->insertItem("Root &mode", this, SLOT(onMenuRootMode()), -1, 3);
         }
     }
+
+    if (m_scheduledTabContent && m_scheduledTabContent->isLoaded()) {
+        m_scheduledTabContent->refresh();
+    }
 }
 
 void TaskMgrMainWindow::onMenuRootMode()
@@ -547,6 +568,9 @@ void TaskMgrMainWindow::onMenuSettings()
         }
         if (m_servicesTabContent) {
             m_servicesTabContent->refresh();
+        }
+        if (m_scheduledTabContent && m_scheduledTabContent->isLoaded()) {
+            m_scheduledTabContent->refresh();
         }
         onRefreshTimeout();
     }
@@ -931,6 +955,14 @@ void TaskMgrMainWindow::updateStatusBar()
         m_servicesTabContent->getCounts(running, stopped, failed);
         TQString msg = TQString("%1 services running     %2 services stopped    %3 services failed")
                        .arg(running).arg(stopped).arg(failed);
+        statusBar()->message(msg);
+    } else if (curPage == m_scheduledTab) {
+        if (!m_scheduledTabContent->isLoaded()) {
+            m_scheduledTabContent->refresh();
+        }
+        int enabled = 0, disabled = 0;
+        m_scheduledTabContent->getCounts(enabled, disabled);
+        TQString msg = TQString("%1 tasks enabled     %2 tasks disabled").arg(enabled).arg(disabled);
         statusBar()->message(msg);
     }
 }

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PKG_NAME="taskmgr"
-PKG_VERSION="${1:-1.1}"
+PKG_VERSION="${1:-1.2}"
 PKG_MAINTAINER="seb3773"
 PKG_SECTION="admin"
 PKG_PRIORITY="optional"

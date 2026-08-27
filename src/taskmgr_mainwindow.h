@@ -275,6 +275,7 @@ private:
 };
 
 class PerformanceTab;
+class ScheduledTab;
 
 /* ====================================================================
  * TaskMgrMainWindow — Main Window Class
@@ -360,6 +361,11 @@ private:
     TQVBoxLayout* m_servicesLayout;
     SystemInfoGauges* m_servicesGauges;
     ServicesTab* m_servicesTabContent;
+
+    TQWidget* m_scheduledTab;
+    TQVBoxLayout* m_scheduledLayout;
+    SystemInfoGauges* m_scheduledGauges;
+    ScheduledTab* m_scheduledTabContent;
 
     // Refresh timer
     TQTimer* m_refreshTimer;

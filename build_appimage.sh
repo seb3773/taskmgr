@@ -4,7 +4,7 @@ set -euo pipefail
 SRC_ROOT="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="$SRC_ROOT/build"
 APPDIR="$BUILD_DIR/AppDir"
-APP_VERSION="${1:-1.1}"
+APP_VERSION="${1:-1.2}"
 
 need_cmd() {
 	command -v "$1" >/dev/null 2>&1 || {

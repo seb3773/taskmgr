@@ -31,9 +31,9 @@ VERSION_ARG="${1:-}"
 if [ -n "$VERSION_ARG" ]; then
 	VERSION_STR="$VERSION_ARG"
 elif [ -f "$SRC_ROOT/src/taskmgr_version.h" ]; then
-	VERSION_STR=$(grep '#define TASKMGR_VERSION "' "$SRC_ROOT/src/taskmgr_version.h" | sed -E 's/.*"([^"]+)".*/\1/' || echo "1.1")
+	VERSION_STR=$(grep '#define TASKMGR_VERSION "' "$SRC_ROOT/src/taskmgr_version.h" | sed -E 's/.*"([^"]+)".*/\1/' || echo "1.2")
 else
-	VERSION_STR="1.1"
+	VERSION_STR="1.2"
 fi
 
 echo "info: configuring Task Manager version $VERSION_STR..."

@@ -6,7 +6,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/taskmgr_version.h")
 "#ifndef TASKMGR_VERSION_H
 #define TASKMGR_VERSION_H
 
-#define TASKMGR_VERSION \"1.1\"
+#define TASKMGR_VERSION \"1.2\"
 
 #endif // TASKMGR_VERSION_H
 ")
@@ -107,6 +107,7 @@ tqt_moc_header_file(${CMAKE_SOURCE_DIR}/src/info_block_widget.h ${CMAKE_BINARY_D
 tqt_moc_header_file(${CMAKE_SOURCE_DIR}/src/performance_tab.h ${CMAKE_BINARY_DIR}/performance_tab.moc)
 tqt_moc_header_file(${CMAKE_SOURCE_DIR}/src/startup_tab.h ${CMAKE_BINARY_DIR}/startup_tab.moc)
 tqt_moc_header_file(${CMAKE_SOURCE_DIR}/src/services_tab.h ${CMAKE_BINARY_DIR}/services_tab.moc)
+tqt_moc_header_file(${CMAKE_SOURCE_DIR}/src/scheduled_tab.h ${CMAKE_BINARY_DIR}/scheduled_tab.moc)
 tqt_moc_header_file(${CMAKE_SOURCE_DIR}/src/users_tab.h ${CMAKE_BINARY_DIR}/users_tab.moc)
 tqt_moc_header_file(${CMAKE_SOURCE_DIR}/src/taskmgr_system_tray.h ${CMAKE_BINARY_DIR}/taskmgr_system_tray.moc)
 tqt_moc_header_file(${CMAKE_SOURCE_DIR}/src/service_details_dialog.h ${CMAKE_BINARY_DIR}/service_details_dialog.moc)
@@ -126,6 +127,7 @@ set(MVC_SOURCES
 set(BACKEND_SOURCES
     src/app_manager.c
     src/autostart_manager.c
+    src/cron_manager.c
     src/disk_manager.c
     src/fast_format.c
     src/functions.c
@@ -157,6 +159,7 @@ set(FRONTEND_SOURCES
     src/performance_tab.cpp
     src/startup_tab.cpp
     src/services_tab.cpp
+    src/scheduled_tab.cpp
     src/service_details_dialog.cpp
     src/process_details_dialog.cpp
     src/root_password_dialog.cpp
@@ -181,6 +184,7 @@ if(TASKMGR_AGGRESSIVE_FLAGS)
         src/info_block_widget.cpp
         src/startup_tab.cpp
         src/services_tab.cpp
+        src/scheduled_tab.cpp
         src/service_details_dialog.cpp
         src/process_details_dialog.cpp
         src/root_password_dialog.cpp
@@ -219,6 +223,7 @@ set(MOC_OUTPUTS
     ${CMAKE_BINARY_DIR}/performance_tab.moc
     ${CMAKE_BINARY_DIR}/startup_tab.moc
     ${CMAKE_BINARY_DIR}/services_tab.moc
+    ${CMAKE_BINARY_DIR}/scheduled_tab.moc
     ${CMAKE_BINARY_DIR}/users_tab.moc
     ${CMAKE_BINARY_DIR}/taskmgr_system_tray.moc
     ${CMAKE_BINARY_DIR}/service_details_dialog.moc
