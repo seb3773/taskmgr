@@ -108,7 +108,8 @@ fi
 # Create .nojekyll to prevent GitHub Pages Jekyll processing
 touch "$PAGES_DIR/.nojekyll"
 
-# Find latest file names for HTML download buttons
+# Find latest file names and version for HTML
+LATEST_VERSION=$(grep '#define TASKMGR_VERSION "' "$REPO_DIR/src/taskmgr_version.h" 2>/dev/null | sed -E 's/.*"([^"]+)".*/\1/' || echo "1.1")
 LATEST_DEB_NAME=$(basename "${DEB_FILES[0]}")
 LATEST_QSI_NAME=""
 if [ ${#QSI_FILES[@]} -gt 0 ]; then
@@ -125,7 +126,7 @@ cat << EOF > "$PAGES_DIR/index.html"
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Task Manager - APT Repository & Downloads</title>
+  <title>Task Manager v${LATEST_VERSION} - APT Repository & Downloads</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <style>
     :root {
@@ -189,6 +190,18 @@ cat << EOF > "$PAGES_DIR/index.html"
     }
     .badge-purple {
       background: linear-gradient(135deg, #6366f1, #a855f7);
+    }
+    .version-pill {
+      display: inline-block;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      padding: 2px 12px;
+      border-radius: 20px;
+      vertical-align: middle;
+      margin-left: 8px;
     }
     h1 {
       font-size: 2.3rem;
@@ -303,11 +316,11 @@ cat << EOF > "$PAGES_DIR/index.html"
       <img src="about_taskmgr.png" alt="Task Manager Logo" class="logo">
       <br>
       <div class="badge-group">
-        <div class="badge">Official APT Repository</div>
+        <div class="badge">Official APT Repository • v${LATEST_VERSION}</div>
         <div class="badge badge-green">TDE &amp; Linux Native</div>
         <div class="badge badge-purple">x86_64</div>
       </div>
-      <h1>Task Manager</h1>
+      <h1>Task Manager <span class="version-pill">v${LATEST_VERSION}</span></h1>
       <p class="lead">Lightweight, modern task and system resource monitor for Trinity Desktop Environment (TDE) &amp; Linux systems.</p>
     </header>
 
