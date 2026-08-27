@@ -2,13 +2,13 @@ Package: taskmgr
 Version: 1.1
 Architecture: amd64
 Maintainer: seb3773
-Installed-Size: 664
+Installed-Size: 688
 Depends: libtqt3-mt-trinity (>= 4:14.0.0) | libtqt3-mt, libglib2.0-0
 Filename: pool/main/t/taskmgr/taskmgr_1.1_amd64.deb
-Size: 190264
-MD5sum: c874d713560f69c8292107034e6c9865
-SHA1: ff54bd32c601851b23f22fe2b81a6ca9771948db
-SHA256: f24b858e6b44b09bc01c57647b519362eb9a1312ac4dbeb5c93efae55949dacf
+Size: 198412
+MD5sum: c7e8a73b1d24b9720fc0c08573dcdadb
+SHA1: 7317d80154929c84e95f71e4b2543a196d9338a2
+SHA256: ced4a773e28d5864d97845ac4e202238900feea7600cf99c9b3e65f356f1c948
 Section: admin
 Priority: optional
 Description: Lightweight process and resource monitor for Trinity Desktop

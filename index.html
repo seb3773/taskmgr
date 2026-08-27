@@ -3,21 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Task Manager v1.2 - APT Repository & Downloads</title>
+  <title>Task Manager v1.2 - APT Repository</title>
   <link rel="icon" type="image/png" href="favicon.png">
+  <meta name="description" content="Official APT Repository and download portal for Task Manager - High-performance system monitor and task manager for Trinity Desktop Environment (TDE) & Linux.">
   <style>
     :root {
-      --bg: #0f172a;
-      --card-bg: #1e293b;
+      --bg: #12141a;
+      --card-bg: #1c1f2b;
+      --card-hover: #222738;
       --accent: #38bdf8;
       --accent-grad: linear-gradient(135deg, #0284c7, #38bdf8);
-      --text: #f1f5f9;
+      --text: #e2e8f0;
       --text-muted: #94a3b8;
-      --code-bg: #0b1120;
-      --border: #334155;
-      --highlight: #22c55e;
+      --code-bg: #0f1117;
+      --border: #2e364f;
+      --radius: 12px;
+      --radius-sm: 8px;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background-color: var(--bg);
@@ -25,36 +34,42 @@
       line-height: 1.6;
       padding: 40px 20px;
     }
+
     .container {
-      max-width: 860px;
+      max-width: 840px;
       margin: 0 auto;
     }
+
     header {
       text-align: center;
       margin-bottom: 40px;
     }
+
     .logo {
       width: 110px;
       height: 110px;
-      margin-bottom: 18px;
-      filter: drop-shadow(0 8px 24px rgba(56, 189, 248, 0.35));
+      margin-bottom: 16px;
+      filter: drop-shadow(0 8px 24px rgba(56, 189, 248, 0.4));
       border-radius: 18px;
       transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
+
     .logo:hover {
-      transform: scale(1.06) rotate(2deg);
+      transform: scale(1.08) rotate(3deg);
     }
+
     .badge-group {
       display: flex;
       justify-content: center;
       gap: 10px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
     }
+
     .badge {
       display: inline-block;
-      padding: 5px 14px;
-      font-size: 0.82rem;
+      padding: 4px 14px;
+      font-size: 0.85rem;
       font-weight: 600;
       color: #fff;
       background: var(--accent-grad);
@@ -62,15 +77,18 @@
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
+
     .badge-green {
       background: linear-gradient(135deg, #15803d, #22c55e);
     }
+
     .badge-purple {
       background: linear-gradient(135deg, #6366f1, #a855f7);
     }
+
     .version-pill {
       display: inline-block;
-      font-size: 1.05rem;
+      font-size: 1.1rem;
       font-weight: 600;
       color: #38bdf8;
       background: rgba(56, 189, 248, 0.12);
@@ -80,181 +98,484 @@
       vertical-align: middle;
       margin-left: 8px;
     }
+
     h1 {
-      font-size: 2.3rem;
-      font-weight: 800;
-      margin-bottom: 10px;
-      letter-spacing: -0.5px;
+      font-size: 2.4rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
+
     p.lead {
-      font-size: 1.15rem;
+      font-size: 1.1rem;
       color: var(--text-muted);
       max-width: 680px;
       margin: 0 auto;
     }
+
     .card {
       background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 26px;
+      border-radius: var(--radius);
+      padding: 24px;
       margin-bottom: 24px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
     }
+
     h2 {
-      font-size: 1.35rem;
-      margin-bottom: 16px;
+      font-size: 1.3rem;
+      margin-bottom: 14px;
       display: flex;
       align-items: center;
       gap: 10px;
       color: #fff;
     }
+
+    /* Terminal & Code snippet box */
+    .code-container {
+      position: relative;
+      margin-top: 10px;
+    }
+
     pre {
       background: var(--code-bg);
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px 20px;
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      padding-right: 80px;
       overflow-x: auto;
-      font-family: "JetBrains Mono", "Fira Code", Consolas, "Courier New", monospace;
+      font-family: "Courier New", Courier, monospace;
       font-size: 0.92rem;
       color: #38bdf8;
-      margin-bottom: 14px;
+      line-height: 1.6;
     }
+
+    .copy-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: var(--text);
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Downloads Grid */
+    .downloads-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .download-card {
+      background: #141722;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+    }
+
+    .download-card:hover {
+      transform: translateY(-2px);
+      border-color: #38bdf8;
+      background: var(--card-hover);
+    }
+
+    .download-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .download-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .download-tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: rgba(56, 189, 248, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .download-desc {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      flex-grow: 1;
+    }
+
+    .btn-download {
+      background: #1e293b;
+      color: #38bdf8;
+      border: 1px solid #334155;
+      padding: 8px 14px;
+      border-radius: 6px;
+      text-align: center;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .btn-download:hover {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: var(--accent);
+    }
+
     .features-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 16px;
       margin-top: 14px;
     }
+
     .feature-item {
-      background: var(--code-bg);
+      background: #141722;
       border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 14px 18px;
+      border-radius: var(--radius-sm);
+      padding: 16px;
     }
-    .feature-item h3 {
-      font-size: 1rem;
-      color: #38bdf8;
+
+    .feature-icon {
+      font-size: 1.4rem;
+      margin-bottom: 6px;
+      display: inline-block;
+    }
+
+    .feature-title {
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: #ffffff;
       margin-bottom: 4px;
     }
-    .feature-item p {
-      font-size: 0.88rem;
+
+    .feature-text {
+      font-size: 0.85rem;
       color: var(--text-muted);
+      line-height: 1.45;
     }
-    .btn-group {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
-      margin-top: 18px;
+
+    /* Screenshots gallery */
+    .screenshots-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
     }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 22px;
-      border-radius: 10px;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 0.95rem;
+
+    .screenshot-thumb {
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      aspect-ratio: 16 / 10;
+      background: #0f1117;
       transition: all 0.2s ease;
     }
-    .btn-primary {
-      background: var(--accent-grad);
-      color: #fff;
-      box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+
+    .screenshot-thumb:hover {
+      transform: scale(1.03);
+      border-color: #38bdf8;
+      box-shadow: 0 6px 20px rgba(56, 189, 248, 0.25);
     }
-    .btn-primary:hover {
-      opacity: 0.92;
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(2, 132, 199, 0.45);
+
+    .screenshot-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
-    .btn-secondary {
-      background: var(--code-bg);
-      color: var(--text);
+
+    /* Modal / Lightbox */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(6px);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal img {
+      max-width: 90vw;
+      max-height: 88vh;
+      border-radius: 8px;
       border: 1px solid var(--border);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
     }
-    .btn-secondary:hover {
-      background: #1e293b;
-      border-color: #475569;
-      transform: translateY(-2px);
+
+    .modal-close {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 2.2rem;
+      color: #fff;
+      cursor: pointer;
+      line-height: 1;
     }
+
     footer {
       text-align: center;
       margin-top: 45px;
       font-size: 0.9rem;
       color: var(--text-muted);
     }
-    footer a { color: var(--accent); text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    .footer-links {
+      margin-top: 8px;
+      font-size: 0.82rem;
+      color: #64748b;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
       <img src="about_taskmgr.png" alt="Task Manager Logo" class="logo">
-      <br>
       <div class="badge-group">
-        <div class="badge">Official APT Repository • v1.2</div>
+        <div class="badge">Official APT Repository</div>
         <div class="badge badge-green">TDE &amp; Linux Native</div>
         <div class="badge badge-purple">x86_64</div>
       </div>
       <h1>Task Manager <span class="version-pill">v1.2</span></h1>
-      <p class="lead">Lightweight, modern task and system resource monitor for Trinity Desktop Environment (TDE) &amp; Linux systems.</p>
+      <p class="lead">Advanced Task Manager &amp; System Performance Monitor for Trinity Desktop Environment (TDE) and Linux systems.</p>
     </header>
 
+    <!-- Method 1: APT Repository -->
     <div class="card">
-      <h2>🚀 Method 1: Add the APT Repository (Recommended)</h2>
-      <p style="margin-bottom: 14px; color: var(--text-muted);">
+      <h2>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+        Method 1: Add the APT Repository (Recommended)
+      </h2>
+      <p style="color: var(--text-muted); font-size: 0.95rem;">
         Add the official repository to your system to receive regular automated updates via <code>apt</code>:
       </p>
-      <pre><code>echo "deb [trusted=yes] https://seb3773.github.io/taskmgr/ stable main" | sudo tee /etc/apt/sources.list.d/taskmgr.list
+
+      <div class="code-container">
+        <pre id="apt-code"><code>echo "deb [trusted=yes] https://seb3773.github.io/taskmgr/ stable main" | sudo tee /etc/apt/sources.list.d/taskmgr.list
 sudo apt update
 sudo apt install taskmgr</code></pre>
-      <p style="font-size: 0.88rem; color: var(--text-muted);">
-        Compatible with Debian, Q4OS, Devuan, Ubuntu, Linux Mint and derivatives.
+        <button class="copy-btn" onclick="copyCode('apt-code', this)">Copy</button>
+      </div>
+
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 14px;">
+        Compatible with Q4OS, Debian, Devuan, Ubuntu, Linux Mint and all Debian-based distributions.
       </p>
     </div>
 
+    <!-- Method 2: Direct Packages -->
     <div class="card">
-      <h2>📦 Method 2: Standalone &amp; Direct Downloads</h2>
-      <p style="color: var(--text-muted); margin-bottom: 12px;">
-        Choose the format best suited for your setup:
+      <h2>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Method 2: Direct Package Download (.deb / .qsi / .AppImage)
+      </h2>
+      <p style="color: var(--text-muted); font-size: 0.95rem;">
+        Choose the package format best suited for your distribution:
       </p>
-      <div class="btn-group">
-        <a class=btn btn-primary href=setup_taskmgr_1.2.qsi>📥 Download Q4OS Installer (.qsi)</a>
-        <a class="btn btn-secondary" href="pool/main/t/taskmgr/taskmgr_1.2_amd64.deb">📦 Download Debian Package (.deb)</a>
-        <a class=btn btn-secondary href=taskmgr-x86_64.AppImage>🐧 Download AppImage (Portable)</a>
+
+      <div class="downloads-grid">
+        <div class="download-card">
+          <div class="download-header">
+            <span class="download-title">Debian / TDE (.deb)</span>
+            <span class="download-tag">Recommended</span>
+          </div>
+          <p class="download-desc">Standard dynamically linked build for Trinity Desktop / Debian-based systems.</p>
+          <a href="pool/main/t/taskmgr/taskmgr_1.2_amd64.deb" class="btn-download">
+            Download .deb
+          </a>
+        </div>
+
+        <div class="download-card">
+          <div class="download-header">
+            <span class="download-title">Q4OS Installer (.qsi)</span>
+            <span class="download-tag">Q4OS 1-Click</span>
+          </div>
+          <p class="download-desc">Graphical one-click installer designed specifically for Q4OS Trinity desktop.</p>
+          <a href="setup_taskmgr_1.2.qsi" class="btn-download">
+            Download .qsi
+          </a>
+        </div>
+
+        <div class="download-card">
+          <div class="download-header">
+            <span class="download-title">Standalone Portable (.AppImage)</span>
+            <span class="download-tag">Universal x86_64</span>
+          </div>
+          <p class="download-desc">Self-contained portable executable with bundled dependencies (runs on any distro).</p>
+          <a href="taskmgr-x86_64.AppImage" class="btn-download">
+            Download AppImage
+          </a>
+        </div>
       </div>
-      <p style="font-size: 0.85rem; color: #64748b; margin-top: 14px;">
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 16px;">
         * Note: The Q4OS installer (.qsi) automatically configures the APT repository during installation for future updates.
       </p>
     </div>
 
+    <!-- Key Features -->
     <div class="card">
-      <h2>✨ Key Features</h2>
+      <h2>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Key Capabilities &amp; Architecture
+      </h2>
+
       <div class="features-grid">
         <div class="feature-item">
-          <h3>⚡ Process Tree &amp; Control</h3>
-          <p>Tree hierarchy, signals, clean termination, priority adjustment, and detailed memory analysis (PSS, RSS, VSZ).</p>
+          <span class="feature-icon">⚡</span>
+          <div class="feature-title">Process Tree &amp; Memory (PSS)</div>
+          <div class="feature-text">Virtual tree hierarchy, fast signal sending, priority controls, and SSE2 SIMD-accelerated Proportional Set Size (PSS) analysis.</div>
         </div>
+
         <div class="feature-item">
-          <h3>📊 Real-Time Graphs</h3>
-          <p>Smooth real-time graphs for CPU (overall &amp; per-core), RAM, Swap, Disk throughput, Network, and GPU engines.</p>
+          <span class="feature-icon">📊</span>
+          <div class="feature-title">Real-Time Performance Graphs</div>
+          <div class="feature-text">Smooth scrolling anti-aliased graphs for CPU (total &amp; per-core), RAM, Swap, Disk I/O, Network, and GPU activity with Compact Mode.</div>
         </div>
+
         <div class="feature-item">
-          <h3>🚀 Startup Manager</h3>
-          <p>Manage autostart applications for both standard XDG entries and native Trinity Desktop (TDE) conditions.</p>
+          <span class="feature-icon">🚀</span>
+          <div class="feature-title">Startup Applications Manager</div>
+          <div class="feature-text">Manage autostart applications for standard XDG autostarts as well as native Trinity Desktop (TDE) conditional launches.</div>
         </div>
+
         <div class="feature-item">
-          <h3>⚙️ Services Management</h3>
-          <p>Inspect, start, stop, restart, enable, or disable systemd system services directly with root elevation support.</p>
+          <span class="feature-icon">⏰</span>
+          <div class="feature-title">Scheduled Tasks &amp; Cron</div>
+          <div class="feature-text">Inspect, toggle, run, edit, and delete cron jobs and system scheduled scripts with instant crontab save synchronization.</div>
+        </div>
+
+        <div class="feature-item">
+          <span class="feature-icon">⚙️</span>
+          <div class="feature-title">Systemd Services Control</div>
+          <div class="feature-text">Inspect, start, stop, restart, enable, or disable systemd services with ephemeral root elevation support.</div>
+        </div>
+
+        <div class="feature-item">
+          <span class="feature-icon">👥</span>
+          <div class="feature-title">Users &amp; Sessions Monitor</div>
+          <div class="feature-text">Track connected users and their session resource consumption with one-click user disconnect functionality.</div>
         </div>
       </div>
     </div>
 
+    <!-- Screenshots -->
+    <div class="card">
+      <h2>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Screenshots
+      </h2>
+      <div class="screenshots-grid">
+        <div class="screenshot-thumb" onclick="openModal('screenshots/screenshot_taskmgr_1.jpg')">
+          <img src="screenshots/screenshot_taskmgr_1.jpg" alt="Processes Tab">
+        </div>
+        <div class="screenshot-thumb" onclick="openModal('screenshots/screenshot_taskmgr_2.jpg')">
+          <img src="screenshots/screenshot_taskmgr_2.jpg" alt="Performance CPU">
+        </div>
+        <div class="screenshot-thumb" onclick="openModal('screenshots/screenshot_taskmgr_3.jpg')">
+          <img src="screenshots/screenshot_taskmgr_3.jpg" alt="Performance Memory">
+        </div>
+        <div class="screenshot-thumb" onclick="openModal('screenshots/screenshot_taskmgr_4.jpg')">
+          <img src="screenshots/screenshot_taskmgr_4.jpg" alt="Performance Disk">
+        </div>
+        <div class="screenshot-thumb" onclick="openModal('screenshots/screenshot_taskmgr_5.jpg')">
+          <img src="screenshots/screenshot_taskmgr_5.jpg" alt="Performance Network">
+        </div>
+        <div class="screenshot-thumb" onclick="openModal('screenshots/screenshot_taskmgr_7.jpg')">
+          <img src="screenshots/screenshot_taskmgr_7.jpg" alt="Startup Tab">
+        </div>
+        <div class="screenshot-thumb" onclick="openModal('screenshots/screenshot_taskmgr_9.jpg')">
+          <img src="screenshots/screenshot_taskmgr_9.jpg" alt="Services Tab">
+        </div>
+        <div class="screenshot-thumb" onclick="openModal('screenshots/screenshot_taskmgr_10.jpg')">
+          <img src="screenshots/screenshot_taskmgr_10.jpg" alt="Users Tab">
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
     <footer>
-      <p>Source Code &amp; Issue Tracker: <a href="https://github.com/seb3773/taskmgr" target="_blank">github.com/seb3773/taskmgr</a></p>
-      <p style="margin-top: 6px;">Developed with ❤️ for the Trinity Desktop Environment (TDE) &amp; Linux community.</p>
+      <p>Source Code &amp; Releases: <a href="https://github.com/seb3773/taskmgr" target="_blank" rel="noopener">github.com/seb3773/taskmgr</a></p>
+      <p style="margin-top: 6px;">Developed with ❤️ for the Trinity Desktop Environment community.</p>
+      <p class="footer-links">
+        <a href="http://trinitydesktop.org/" target="_blank" rel="noopener">http://trinitydesktop.org/</a> &bull; 
+        <a href="https://www.q4os.org/" target="_blank" rel="noopener">https://www.q4os.org/</a> &bull; 
+        <a href="https://www.q4os.org/forum/index.php" target="_blank" rel="noopener">https://www.q4os.org/forum/index.php</a>
+      </p>
     </footer>
+
   </div>
+
+  <!-- Lightbox Modal -->
+  <div id="imageModal" class="modal" onclick="closeModal()">
+    <span class="modal-close">&times;</span>
+    <img id="modalImg" src="" alt="Enlarged screenshot" onclick="event.stopPropagation()">
+  </div>
+
+  <script>
+    function copyCode(id, btn) {
+      const text = document.getElementById(id).innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.innerText;
+        btn.innerText = "Copied!";
+        setTimeout(() => btn.innerText = orig, 2000);
+      });
+    }
+
+    function openModal(src) {
+      document.getElementById('modalImg').src = src;
+      document.getElementById('imageModal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('imageModal').classList.remove('active');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+  </script>
 </body>
 </html>
