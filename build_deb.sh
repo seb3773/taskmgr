@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PKG_NAME="taskmgr"
-PKG_VERSION="1.1"
+PKG_VERSION="${1:-1.1}"
 PKG_MAINTAINER="seb3773"
 PKG_SECTION="admin"
 PKG_PRIORITY="optional"
@@ -34,8 +34,8 @@ mkdir -p -- "$BUILD_DIR"
 rm -rf -- "$PKGTMP"
 mkdir -p -- "$PKGTMP"
 
-# Build (out-of-tree) using build.sh
-"$SRC_ROOT/build.sh"
+# Build (out-of-tree) using build.sh passing PKG_VERSION
+"$SRC_ROOT/build.sh" "$PKG_VERSION"
 
 BIN_PATH="$BUILD_DIR/taskmgr"
 if test ! -x "$BIN_PATH"; then

@@ -1,0 +1,6 @@
+#ifndef TASKMGR_VERSION_H
+#define TASKMGR_VERSION_H
+
+#define TASKMGR_VERSION "1.1"
+
+#endif // TASKMGR_VERSION_H

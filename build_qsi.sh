@@ -32,7 +32,7 @@ rm -f "$DEB_DIR"/*.deb "$OUT_DIR"/*.qsi
 # 4. Recherche ou compilation du paquet .deb
 if [ -x "$SCRIPT_DIR/build_deb.sh" ]; then
     echo "[Info] Compilation du paquet Debian..."
-    "$SCRIPT_DIR/build_deb.sh"
+    "$SCRIPT_DIR/build_deb.sh" "$APP_VERSION"
 fi
 
 LATEST_DEB=$(ls -t "$SCRIPT_DIR"/*.deb "$SCRIPT_DIR"/build/*.deb 2>/dev/null | head -n 1)

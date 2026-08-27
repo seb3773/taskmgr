@@ -25,6 +25,27 @@ if test "$missing" -ne 0; then
 	exit 1
 fi
 
+VERSION_ARG="${1:-}"
+
+# If a version is passed as argument, or if taskmgr_version.h does not exist, update taskmgr_version.h
+if [ -n "$VERSION_ARG" ]; then
+	VERSION_STR="$VERSION_ARG"
+elif [ -f "$SRC_ROOT/src/taskmgr_version.h" ]; then
+	VERSION_STR=$(grep '#define TASKMGR_VERSION "' "$SRC_ROOT/src/taskmgr_version.h" | sed -E 's/.*"([^"]+)".*/\1/' || echo "1.1")
+else
+	VERSION_STR="1.1"
+fi
+
+echo "info: configuring Task Manager version $VERSION_STR..."
+cat <<EOF > "$SRC_ROOT/src/taskmgr_version.h"
+#ifndef TASKMGR_VERSION_H
+#define TASKMGR_VERSION_H
+
+#define TASKMGR_VERSION "$VERSION_STR"
+
+#endif // TASKMGR_VERSION_H
+EOF
+
 mkdir -p -- "$BUILD_DIR"
 
 # Configure in Release mode, turning off ASan/UBSan instrumentation

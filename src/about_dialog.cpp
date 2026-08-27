@@ -4,6 +4,7 @@
 
 #include "about_dialog.h"
 #include "app_icons.h"
+#include "taskmgr_version.h"
 
 #include <ntqdialog.h>
 #include <ntqlayout.h>
@@ -34,6 +35,15 @@ void showAboutDialog(TQWidget* parent)
     titleFont.setBold(true);
     title->setFont(titleFont);
     layout->addWidget(title);
+
+    TQLabel* versionLbl = new TQLabel(TQString("Version ") + TASKMGR_VERSION, &dlg);
+    versionLbl->setAlignment(TQt::AlignHCenter);
+    TQFont verFont = versionLbl->font();
+    verFont.setPointSize(verFont.pointSize() - 1);
+    versionLbl->setFont(verFont);
+    layout->addWidget(versionLbl);
+
+    layout->addSpacing(2);
 
     TQLabel* subtitle = new TQLabel("A Task Manager for Trinity Desktop", &dlg);
     subtitle->setAlignment(TQt::AlignHCenter);

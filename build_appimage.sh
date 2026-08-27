@@ -4,6 +4,7 @@ set -euo pipefail
 SRC_ROOT="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="$SRC_ROOT/build"
 APPDIR="$BUILD_DIR/AppDir"
+APP_VERSION="${1:-1.1}"
 
 need_cmd() {
 	command -v "$1" >/dev/null 2>&1 || {
@@ -26,8 +27,8 @@ need_cmd mkdir
 mkdir -p -- "$BUILD_DIR"
 
 # Build the binary using the existing build.sh script
-echo "info: building taskmgr..."
-"$SRC_ROOT/build.sh"
+echo "info: building taskmgr version $APP_VERSION..."
+"$SRC_ROOT/build.sh" "$APP_VERSION"
 
 BIN_PATH="$BUILD_DIR/taskmgr"
 if test ! -x "$BIN_PATH"; then

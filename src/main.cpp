@@ -24,6 +24,7 @@
 #include "preferences_dialog.h"
 #include "taskmgr_mainwindow.h"
 #include "backend_bridge.h"
+#include "taskmgr_version.h"
 
 // Global config path defined in backend C code
 extern "C" gchar *config_file;
@@ -110,7 +111,7 @@ int main(int argc, char** argv) {
     GraphColors::load();
     GaugeColors::load();
 
-    TDEAboutData aboutData("taskmgr", I18N_NOOP("Task Manager"), "1.1",
+    TDEAboutData aboutData("taskmgr", I18N_NOOP("Task Manager"), TASKMGR_VERSION,
                            I18N_NOOP("Task Manager"), TDEAboutData::License_GPL);
     TDECmdLineArgs::init(argc, argv, &aboutData);
     KUniqueApplication::addCmdLineOptions();

@@ -1,6 +1,17 @@
 cmake_minimum_required(VERSION 3.10)
 project(taskmgr C CXX)
 
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/taskmgr_version.h")
+    file(WRITE "${CMAKE_CURRENT_SOURCE_DIR}/src/taskmgr_version.h"
+"#ifndef TASKMGR_VERSION_H
+#define TASKMGR_VERSION_H
+
+#define TASKMGR_VERSION \"1.1\"
+
+#endif // TASKMGR_VERSION_H
+")
+endif()
+
 set(CMAKE_CXX_STANDARD 98)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
