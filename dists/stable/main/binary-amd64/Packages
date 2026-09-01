@@ -24,10 +24,10 @@ Maintainer: seb3773
 Installed-Size: 688
 Depends: libtqt3-mt-trinity (>= 4:14.0.0) | libtqt3-mt, libglib2.0-0
 Filename: pool/main/t/taskmgr/taskmgr_1.2_amd64.deb
-Size: 199832
-MD5sum: e91a2ef0b37dfbf43113cb34c800b181
-SHA1: 91f08fba77138540e09371854baec39a8b2a193b
-SHA256: a4eab96b3c7de8d3859542c2d54ce58f409df27ebf50cb3cac63722402decb79
+Size: 199368
+MD5sum: 544ceba1f061320ec0ec9f47ac6b9a48
+SHA1: 3fe2f6656525229221f549f9ecd07716446362d6
+SHA256: 84a742ec4edc196cd413f4b6c1fb1216cbf907442df0db90186ebc17663322f5
 Section: admin
 Priority: optional
 Description: Lightweight process and resource monitor for Trinity Desktop

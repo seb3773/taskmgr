@@ -1,24 +1,24 @@
 Architectures: amd64
 Codename: stable
 Components: main
-Date: Thu, 27 Aug 2026 10:16:21 +0000
+Date: Tue, 01 Sep 2026 00:10:10 +0000
 Description: APT Repository for Task Manager (Trinity Desktop & Linux)
 Label: Task Manager APT Repository
 Origin: Taskmgr
 Suite: stable
 MD5Sum:
- 46472b6fa726f40bf25b740b1467a9b9              229 Release
- c23212de15043544185265b5c179bdbf             1596 main/binary-amd64/Packages
- 234dca21f6bd3289e5831b03deaa1425              696 main/binary-amd64/Packages.gz
+ 74def11bca37a08d057227be07763a7a              229 Release
+ 8060a1a996ba83d416157ed0221226b4             1596 main/binary-amd64/Packages
+ 02e563041a72227c9d9bd9bf4fcddd4a              699 main/binary-amd64/Packages.gz
 SHA1:
- 70b575d0e18a9f1ac4b9fe8c3ad8a391e1dc4666              229 Release
- ecb86a9150179ac65a1cc04ee29104c48404f392             1596 main/binary-amd64/Packages
- d23adc9a9ee78fbeb6e8c0518a86bb20fac6e6cd              696 main/binary-amd64/Packages.gz
+ cd61112489f0a9da8b8f116fb2b9c070de3509f9              229 Release
+ dd775a2ab62c4c0789fe40b852b2b8d1080bc6a6             1596 main/binary-amd64/Packages
+ b9afd5dac72085b0081fd59e2ebbf3dc41fc7696              699 main/binary-amd64/Packages.gz
 SHA256:
- 30017c86bf0263bbcdb1dedf3fa518002cf9e74e216653d935febdcf19cc43cd              229 Release
- c09dbf8e681a1eb477d046f671871f1618a9c1c60efd577a0d9822114b7bff7f             1596 main/binary-amd64/Packages
- 6c30edb5e8fb3f211b9310f9693f183db6106b21e74d7ecfa8370e2b280d3e74              696 main/binary-amd64/Packages.gz
+ d6000fb33f89daf020c776e6e2f47809fa21b92b1f7afddaf81ad76a2b1df6b3              229 Release
+ 3d05ec280708dae0e8f65474ea9163580915115457a47f95e5e0a2a3fdfcd1a4             1596 main/binary-amd64/Packages
+ d4a3fe57e3d4c66657b37c4197224f4f723b6d50d27bae35a1c7fef8a9afc7ab              699 main/binary-amd64/Packages.gz
 SHA512:
- 62bd4201208ca1218632101dc3fa034e6ea144ef411712471aad4e6ce8e795c59f6ff6a7dd35892956ab66d9e8705e08f33cdd9bf3da296c0bb41b04eb00166d              229 Release
- 50127b275f6779a7f017fc9874ca597c5dffc62387f9f09562b901b236866fd049bd5da618d0e20613a14f1d04f322d57867004d057529927eabcab6ba2f1a60             1596 main/binary-amd64/Packages
- fd9564f64551c16be57f66a5f1875b7755c1ecb98a00f74d4f1c59ef7977088726a180e2fda44e6808023d42684b754787f4e812947174fccaece94716176076              696 main/binary-amd64/Packages.gz
+ a61cda7e8128ebe446f7d946a7b16adb6e967605d6369be314486ce0423a4c8ab34edd3f09cefd9f7c6a26535093b7b7c71a9df5cbf9cadb2e47185ef071ed98              229 Release
+ ecea2c5494a70f4bf49250fb8999ff524ae9e42d8822add0ec181ef7e54f55d8dad20145332b9a63c5a15af37a91dcb2f457b89ecdec8a941a5b47d05e56e64a             1596 main/binary-amd64/Packages
+ 34726ed247d7f3a1e199fba9a061ff9a87db7e5a4db3252e922b4b68c27cbbadd47acabb7a79a648cedd130541a4e9ff6d1de56b94e409d28e6d8359f70cf414              699 main/binary-amd64/Packages.gz
